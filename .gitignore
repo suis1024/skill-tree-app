@@ -1,0 +1,10 @@
+.DS_Store
+.env
+.env.local
+*.log
+
+# project-specific
+legacy/
+
+# Claude Code 個人設定（settings.json はチーム共有可、settings.local.json は個人）
+.claude/settings.local.json

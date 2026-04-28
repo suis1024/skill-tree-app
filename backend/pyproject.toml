@@ -1,0 +1,11 @@
+[project]
+name = "skill-tree-backend"
+version = "0.1.0"
+description = "Skill tree app backend API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi==0.111.0",
+    "uvicorn[standard]==0.29.0",
+    "psycopg2-binary==2.9.9",
+    "python-dotenv==1.0.1",
+]
