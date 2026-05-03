@@ -20,7 +20,7 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
             disabled={busy}
             style={styles.startButton}
           >
-            ▶ 出撃する
+            ▶ ステージ選択
           </button>
         </div>
       </header>

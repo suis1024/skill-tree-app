@@ -1,15 +1,16 @@
 import Phaser from "phaser";
 import { computeStats } from "./skills";
+import { ENEMY_TYPES, pickEnemyType, spawnIntervalMs, spawnBatchSize } from "./enemies";
+import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
+import { bossForStage } from "./bosses";
 
 const PLAYER_BASE_SPEED = 220;
 const BULLET_SPEED = 500;
 const BULLET_BASE_INTERVAL_MS = 350;
-const ENEMY_SPAWN_INTERVAL_MS = 1000;
-const ENEMY_SPEED = 90;
 const COIN_BASE_PICKUP_RADIUS = 60;
 const COIN_MAGNET_SPEED = 320;
-const ENEMY_BASE_HP = 1;
 const BULLET_BASE_DAMAGE = 1;
+const ENEMY_BULLET_DAMAGE = 1;
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -33,10 +34,16 @@ export default class MainScene extends Phaser.Scene {
     const skillLevels = this.registry.get("skillLevels") || {};
     this.stats = computeStats(skillLevels);
 
+    this.stageNumber = this.registry.get("stageNumber") || 1;
+    this.difficultyMul = difficultyMul(this.stageNumber);
+    this.phase = "wave";
+    this.boss = null;
+
     this.maxHp = this.stats.maxHp;
     this.hp = this.maxHp;
     this.coins = this.stats.startBonus;
     this.elapsedMs = 0;
+    this.lastSpawnTuneMs = 0;
     this.regenAccum = 0;
     this.gameOverActive = false;
     this.invincibleUntil = 0;
@@ -49,6 +56,7 @@ export default class MainScene extends Phaser.Scene {
 
     this.bullets = this.physics.add.group();
     this.enemies = this.physics.add.group();
+    this.enemyBullets = this.physics.add.group();
     this.coinSprites = this.physics.add.group();
 
     this.keysWasd = this.input.keyboard.addKeys({
@@ -79,14 +87,16 @@ export default class MainScene extends Phaser.Scene {
       callback: () => this.fireBullet(),
     });
 
+    this.currentSpawnInterval = spawnIntervalMs(0);
     this.spawnTimer = this.time.addEvent({
-      delay: ENEMY_SPAWN_INTERVAL_MS,
+      delay: this.currentSpawnInterval,
       loop: true,
-      callback: () => this.spawnEnemy(),
+      callback: () => this.spawnWave(),
     });
 
     this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => this.onBulletHit(bullet, enemy));
-    this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => this.hitPlayer(enemy));
+    this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => this.hitPlayer(enemy, enemy.contactDamage || 1));
+    this.physics.add.overlap(this.player, this.enemyBullets, (_p, eb) => this.onPlayerHitByEnemyBullet(eb));
     this.physics.add.overlap(this.player, this.coinSprites, (_p, coin) => this.pickupCoin(coin));
 
     this.createHud();
@@ -94,11 +104,18 @@ export default class MainScene extends Phaser.Scene {
 
   createHud() {
     const style = { fontFamily: "system-ui, sans-serif", fontSize: "18px", color: "#e2e8f0" };
+    const small = { ...style, fontSize: "14px", color: "#94a3b8" };
     const top = this.registry.get("safeAreaTop") || 12;
     this.hudTop = top;
     this.hpText = this.add.text(16, top, "", style).setDepth(2000);
     this.coinText = this.add.text(16, top + 24, "", style).setDepth(2000);
+    this.stageText = this.add.text(this.worldWidth / 2, top, `STAGE ${this.stageNumber}`, style)
+      .setOrigin(0.5, 0).setDepth(2000);
     this.timeText = this.add.text(this.worldWidth - 16, top, "", style).setOrigin(1, 0).setDepth(2000);
+    this.bossHpBar = null;
+    this.bossHpBarBg = null;
+    this.bossLabel = this.add.text(this.worldWidth / 2, top + 28, "", small)
+      .setOrigin(0.5, 0).setDepth(2000);
     this.refreshHud();
   }
 
@@ -107,10 +124,36 @@ export default class MainScene extends Phaser.Scene {
     const empty = Math.max(0, this.maxHp - hp);
     this.hpText.setText(`HP: ${"♥".repeat(hp)}${"·".repeat(empty)}`);
     this.coinText.setText(`COIN: ${this.coins}`);
-    const total = Math.floor(this.elapsedMs / 1000);
-    const m = String(Math.floor(total / 60)).padStart(2, "0");
-    const s = String(total % 60).padStart(2, "0");
-    this.timeText.setText(`TIME: ${m}:${s}`);
+    if (this.phase === "wave") {
+      const remain = Math.max(0, WAVE_DURATION_MS - this.elapsedMs);
+      const total = Math.ceil(remain / 1000);
+      const m = String(Math.floor(total / 60)).padStart(2, "0");
+      const s = String(total % 60).padStart(2, "0");
+      this.timeText.setText(`BOSS in ${m}:${s}`);
+      this.bossLabel.setText("");
+    } else if (this.phase === "boss" && this.boss && this.boss.active) {
+      this.timeText.setText("BOSS");
+      this.bossLabel.setText(`BOSS HP: ${Math.max(0, Math.ceil(this.boss.hp))} / ${this.boss.hpMax}`);
+      this.updateBossHpBar();
+    } else {
+      this.timeText.setText("");
+      this.bossLabel.setText("");
+    }
+  }
+
+  updateBossHpBar() {
+    if (!this.boss) return;
+    const top = this.hudTop;
+    const w = Math.min(360, this.worldWidth - 60);
+    const h = 6;
+    const x = (this.worldWidth - w) / 2;
+    const y = top + 50;
+    if (!this.bossHpBarBg) {
+      this.bossHpBarBg = this.add.rectangle(x, y, w, h, 0x334155).setOrigin(0, 0).setDepth(2000);
+      this.bossHpBar = this.add.rectangle(x, y, w, h, 0xef4444).setOrigin(0, 0).setDepth(2001);
+    }
+    const ratio = Math.max(0, this.boss.hp) / this.boss.hpMax;
+    this.bossHpBar.width = w * ratio;
   }
 
   update(_time, delta) {
@@ -158,9 +201,64 @@ export default class MainScene extends Phaser.Scene {
       if (!enemy || !enemy.body) return;
       const dx = this.player.x - enemy.x;
       const dy = this.player.y - enemy.y;
-      const len = Math.hypot(dx, dy) || 1;
-      enemy.body.setVelocity((dx / len) * ENEMY_SPEED, (dy / len) * ENEMY_SPEED);
+      const dist = Math.hypot(dx, dy) || 1;
+      const nx = dx / dist;
+      const ny = dy / dist;
+
+      if (enemy.isBoss) {
+        const p = enemy.pattern;
+        if (p && p.startsWith("shoot")) {
+          const diff = dist - (enemy.preferredDistance || 240);
+          const dir = Math.abs(diff) < 20 ? 0 : Math.sign(diff);
+          enemy.body.setVelocity(nx * enemy.speed * dir, ny * enemy.speed * dir);
+          if (this.time.now >= enemy.nextShotAt) {
+            enemy.nextShotAt = this.time.now + (enemy.shootIntervalMs || 1500);
+            this.fireBossBullets(enemy, nx, ny);
+          }
+        } else if (p === "chase_burst") {
+          enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+          if (this.time.now >= enemy.nextBurstAt) {
+            enemy.nextBurstAt = this.time.now + 3000;
+            this.fireRing(enemy, 12, 200);
+          }
+        } else {
+          enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+        }
+      } else if (enemy.canShoot && enemy.preferredDistance) {
+        const diff = dist - enemy.preferredDistance;
+        const dir = Math.abs(diff) < 16 ? 0 : Math.sign(diff);
+        enemy.body.setVelocity(nx * enemy.speed * dir, ny * enemy.speed * dir);
+
+        if (this.time.now >= enemy.nextShotAt) {
+          enemy.nextShotAt = this.time.now + enemy.shootIntervalMs;
+          this.fireEnemyBullet(enemy, nx, ny);
+        }
+      } else {
+        enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+      }
     });
+
+    this.enemyBullets.children.iterate((eb) => {
+      if (!eb) return;
+      if (eb.x < -20 || eb.x > this.worldWidth + 20 || eb.y < -20 || eb.y > this.worldHeight + 20) {
+        eb.destroy();
+      }
+    });
+
+    if (this.phase === "wave") {
+      if (this.elapsedMs - this.lastSpawnTuneMs > 2000) {
+        this.lastSpawnTuneMs = this.elapsedMs;
+        const baseInterval = spawnIntervalMs(this.elapsedMs / 1000);
+        const next = Math.max(150, Math.round(baseInterval / this.difficultyMul));
+        if (next !== this.currentSpawnInterval) {
+          this.currentSpawnInterval = next;
+          this.spawnTimer.delay = next;
+        }
+      }
+      if (this.elapsedMs >= WAVE_DURATION_MS) {
+        this.startBossPhase();
+      }
+    }
 
     const magnetRadius = COIN_BASE_PICKUP_RADIUS * this.stats.magnetMul;
     this.coinSprites.children.iterate((coin) => {
@@ -244,17 +342,139 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  spawnEnemy() {
-    if (this.gameOverActive) return;
+  spawnWave() {
+    if (this.gameOverActive || this.phase !== "wave") return;
+    const elapsedSec = this.elapsedMs / 1000;
+    const batch = spawnBatchSize(elapsedSec);
+    for (let i = 0; i < batch; i++) {
+      const type = pickEnemyType(elapsedSec);
+      this.spawnEnemy(type);
+    }
+  }
+
+  startBossPhase() {
+    if (this.phase !== "wave") return;
+    this.phase = "boss";
+    this.spawnTimer.remove();
+    this.enemies.children.iterate((e) => e && e.destroy());
+    this.enemyBullets.children.iterate((e) => e && e.destroy());
+    this.cameras.main.flash(400, 200, 50, 50);
+    this.cameras.main.shake(300, 0.01);
+
+    const banner = this.add.text(this.worldWidth / 2, this.worldHeight / 2, "BOSS!", {
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "64px",
+      color: "#ef4444",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(3000);
+    this.tweens.add({
+      targets: banner,
+      alpha: { from: 1, to: 0 },
+      scale: { from: 1, to: 1.6 },
+      duration: 1200,
+      onComplete: () => banner.destroy(),
+    });
+
+    this.time.delayedCall(800, () => this.spawnBoss());
+  }
+
+  spawnBoss() {
+    const def = bossForStage(this.stageNumber);
+    const x = this.worldWidth / 2;
+    const y = Math.min(120, this.worldHeight * 0.2);
+    const boss = this.add.rectangle(x, y, def.size, def.size, def.color);
+    boss.setStrokeStyle(3, 0xfacc15);
+    this.enemies.add(boss);
+    boss.isBoss = true;
+    boss.typeId = "boss";
+    boss.hp = def.hp;
+    boss.hpMax = def.hp;
+    boss.speed = def.speed;
+    boss.contactDamage = def.contactDamage;
+    boss.coinDrop = 0; // クリアボーナスで別途付与
+    boss.pattern = def.pattern;
+    boss.shotSpeed = def.shotSpeed;
+    boss.shootIntervalMs = def.shotIntervalMs;
+    boss.preferredDistance = def.preferredDistance;
+    boss.nextShotAt = this.time.now + 1000;
+    boss.nextBurstAt = this.time.now + 3000;
+    this.boss = boss;
+  }
+
+  fireBossBullets(boss, nx, ny) {
+    if (boss.pattern === "shoot3way") {
+      this.fireSpread(boss, nx, ny, 3, 0.25, boss.shotSpeed);
+    } else if (boss.pattern === "shoot5way") {
+      this.fireSpread(boss, nx, ny, 5, 0.22, boss.shotSpeed);
+    } else if (boss.pattern === "shoot8way") {
+      this.fireRing(boss, 8, boss.shotSpeed);
+    }
+  }
+
+  fireSpread(src, nx, ny, count, spread, speed) {
+    const baseAngle = Math.atan2(ny, nx);
+    const start = baseAngle - (spread * (count - 1)) / 2;
+    for (let i = 0; i < count; i++) {
+      const angle = count === 1 ? baseAngle : start + spread * i;
+      const eb = this.add.circle(src.x, src.y, 6, 0xfca5a5);
+      this.enemyBullets.add(eb);
+      eb.body.setCircle(eb.radius);
+      eb.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      this.time.delayedCall(4000, () => eb.destroy());
+    }
+  }
+
+  fireRing(src, count, speed) {
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count;
+      const eb = this.add.circle(src.x, src.y, 6, 0xfca5a5);
+      this.enemyBullets.add(eb);
+      eb.body.setCircle(eb.radius);
+      eb.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
+      this.time.delayedCall(4000, () => eb.destroy());
+    }
+  }
+
+  spawnEnemy(typeId) {
+    const def = ENEMY_TYPES[typeId];
+    if (!def) return;
     const side = Phaser.Math.Between(0, 3);
     let x, y;
     if (side === 0) { x = 0; y = Phaser.Math.Between(0, this.worldHeight); }
     else if (side === 1) { x = this.worldWidth; y = Phaser.Math.Between(0, this.worldHeight); }
     else if (side === 2) { x = Phaser.Math.Between(0, this.worldWidth); y = 0; }
     else { x = Phaser.Math.Between(0, this.worldWidth); y = this.worldHeight; }
-    const enemy = this.add.rectangle(x, y, 24, 24, 0xef4444);
+    const enemy = this.add.rectangle(x, y, def.size, def.size, def.color);
     this.enemies.add(enemy);
-    enemy.hp = ENEMY_BASE_HP;
+    enemy.typeId = typeId;
+    enemy.hp = Math.max(1, Math.round(def.hp * this.difficultyMul));
+    enemy.speed = def.speed * (1 + (this.difficultyMul - 1) * 0.4);
+    enemy.contactDamage = Math.max(1, Math.round(def.contactDamage * this.difficultyMul));
+    enemy.coinDrop = def.coinDrop;
+    enemy.canShoot = def.canShoot;
+    if (def.canShoot) {
+      enemy.shootIntervalMs = def.shootIntervalMs;
+      enemy.preferredDistance = def.preferredDistance;
+      enemy.shotSpeed = def.shotSpeed;
+      enemy.nextShotAt = this.time.now + Phaser.Math.Between(500, def.shootIntervalMs);
+    }
+  }
+
+  fireEnemyBullet(enemy, nx, ny) {
+    const eb = this.add.circle(enemy.x, enemy.y, 5, 0xfca5a5);
+    this.enemyBullets.add(eb);
+    eb.body.setCircle(eb.radius);
+    eb.body.setVelocity(nx * enemy.shotSpeed, ny * enemy.shotSpeed);
+    this.time.delayedCall(4000, () => eb.destroy());
+  }
+
+  onPlayerHitByEnemyBullet(eb) {
+    if (this.time.now < this.invincibleUntil) {
+      eb.destroy();
+      return;
+    }
+    eb.destroy();
+    this.applyDamage(ENEMY_BULLET_DAMAGE);
   }
 
   onBulletHit(bullet, enemy) {
@@ -270,13 +490,64 @@ export default class MainScene extends Phaser.Scene {
   killEnemy(enemy) {
     const x = enemy.x;
     const y = enemy.y;
+    const dropCount = enemy.coinDrop || 1;
+    const wasBoss = enemy.isBoss;
     enemy.destroy();
-    const isLucky = Math.random() < this.stats.luckyChance;
-    this.dropCoin(x, y, isLucky);
+    for (let i = 0; i < dropCount; i++) {
+      const isLucky = Math.random() < this.stats.luckyChance;
+      const ox = dropCount === 1 ? 0 : Phaser.Math.Between(-12, 12);
+      const oy = dropCount === 1 ? 0 : Phaser.Math.Between(-12, 12);
+      this.dropCoin(x + ox, y + oy, isLucky);
+    }
+    if (wasBoss) {
+      this.boss = null;
+      this.onBossDefeated(x, y);
+    }
+  }
+
+  onBossDefeated(x, y) {
+    if (this.phase !== "boss") return;
+    this.phase = "clearing";
+    this.cameras.main.flash(500, 250, 220, 100);
+    this.cameras.main.shake(400, 0.015);
+
+    // 視覚演出のみ (実数値ボーナスは endRun 内で別途加算)。
+    const sparkles = 12;
+    for (let i = 0; i < sparkles; i++) {
+      this.time.delayedCall(i * 40, () => {
+        const ang = (Math.PI * 2 * i) / sparkles;
+        const r = Phaser.Math.Between(40, 100);
+        const sx = x + Math.cos(ang) * r;
+        const sy = y + Math.sin(ang) * r;
+        const star = this.add.circle(sx, sy, 6, 0xfde047).setDepth(2500);
+        this.tweens.add({
+          targets: star,
+          alpha: { from: 1, to: 0 },
+          scale: { from: 1.2, to: 0.4 },
+          duration: 800,
+          onComplete: () => star.destroy(),
+        });
+      });
+    }
+
+    const banner = this.add.text(this.worldWidth / 2, this.worldHeight / 2, "STAGE CLEAR!", {
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "56px",
+      color: "#fde047",
+      fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(3000);
+    this.tweens.add({
+      targets: banner,
+      alpha: { from: 1, to: 1 },
+      scale: { from: 0.5, to: 1.2 },
+      duration: 600,
+    });
+
+    this.time.delayedCall(2400, () => this.endRun(true));
   }
 
   dropCoin(x, y, isLucky) {
-    const coin = this.add.circle(x, y, isLucky ? 7 : 5, isLucky ? 0xfde047 : 0xfde047);
+    const coin = this.add.circle(x, y, isLucky ? 7 : 5, 0xfde047);
     if (isLucky) coin.setStrokeStyle(2, 0xf97316);
     coin.value = isLucky ? 3 : 1;
     this.coinSprites.add(coin);
@@ -289,10 +560,14 @@ export default class MainScene extends Phaser.Scene {
     this.coins += Math.round(value * this.stats.coinMul);
   }
 
-  hitPlayer(enemy) {
+  hitPlayer(enemy, rawDamage) {
     if (this.time.now < this.invincibleUntil) return;
     enemy.destroy();
-    const dmg = Math.max(0.1, 1 * (1 - this.stats.damageReduction));
+    this.applyDamage(rawDamage);
+  }
+
+  applyDamage(rawDamage) {
+    const dmg = Math.max(0.1, rawDamage * (1 - this.stats.damageReduction));
     this.hp -= dmg;
     this.invincibleUntil = this.time.now + 800;
     this.player.setAlpha(0.4);
@@ -309,25 +584,27 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  endRun() {
+  endRun(cleared = false) {
     if (this.gameOverActive) return;
     this.gameOverActive = true;
-    this.fireTimer.remove();
-    this.spawnTimer.remove();
-    this.physics.pause();
-    this.player.setFillStyle(0x475569);
+    if (this.fireTimer) this.fireTimer.remove();
+    if (this.spawnTimer) this.spawnTimer.remove();
+    if (!cleared) this.player.setFillStyle(0x475569);
     this.player.setAlpha(1);
 
     const baseCoins = this.coins - this.stats.startBonus;
-    const retryBonus = Math.round(baseCoins * this.stats.retryRate);
-    const totalCoins = this.coins + retryBonus;
+    const retryBonus = cleared ? 0 : Math.round(baseCoins * this.stats.retryRate);
+    const clearBonus = cleared ? clearBonusCoins(this.stageNumber) : 0;
+    const totalCoins = this.coins + retryBonus + clearBonus;
     const totalSec = Math.floor(this.elapsedMs / 1000);
 
     this.game.events.emit("run-ended", {
       coins: totalCoins,
       retryBonus,
+      clearBonus,
       survivedSec: totalSec,
-      cleared: false,
+      cleared,
+      stageNumber: this.stageNumber,
     });
   }
 }

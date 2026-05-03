@@ -1,9 +1,17 @@
 import { useEffect, useState } from "react";
 import PhaserGame from "./PhaserGame";
 import SkillTreeScreen from "./SkillTreeScreen";
-import { getUserId, fetchProgress, addCoins, upgradeSkill } from "./api";
+import StageSelectScreen from "./StageSelectScreen";
+import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared } from "./api";
 
-const SCREEN = { LOADING: "loading", TREE: "tree", GAME: "game", RESULT: "result", ERROR: "error" };
+const SCREEN = {
+  LOADING: "loading",
+  TREE: "tree",
+  STAGE_SELECT: "stageSelect",
+  GAME: "game",
+  RESULT: "result",
+  ERROR: "error",
+};
 
 export default function App() {
   const [screen, setScreen] = useState(SCREEN.LOADING);
@@ -11,6 +19,8 @@ export default function App() {
   const [userId] = useState(() => getUserId());
   const [coins, setCoins] = useState(0);
   const [skillLevels, setSkillLevels] = useState({});
+  const [clearedStages, setClearedStages] = useState([]);
+  const [selectedStage, setSelectedStage] = useState(1);
   const [lastResult, setLastResult] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -21,6 +31,7 @@ export default function App() {
         if (cancelled) return;
         setCoins(data.coins);
         setSkillLevels(data.skill_levels || {});
+        setClearedStages(data.cleared_stages || []);
         setScreen(SCREEN.TREE);
       })
       .catch((e) => {
@@ -44,7 +55,11 @@ export default function App() {
     }
   };
 
-  const handleStart = () => {
+  const handleGoStageSelect = () => setScreen(SCREEN.STAGE_SELECT);
+  const handleBackToTree = () => setScreen(SCREEN.TREE);
+
+  const handleStartStage = (stageNumber) => {
+    setSelectedStage(stageNumber);
     setLastResult(null);
     setScreen(SCREEN.GAME);
   };
@@ -60,12 +75,24 @@ export default function App() {
         console.error(e);
       }
     }
+    if (data.cleared && data.stageNumber) {
+      try {
+        const res = await markStageCleared(userId, data.stageNumber);
+        setClearedStages(res.cleared_stages);
+      } catch (e) {
+        console.error(e);
+      }
+    }
   };
 
-  const handleBackToTree = () => setScreen(SCREEN.TREE);
-
   if (screen === SCREEN.GAME) {
-    return <PhaserGame skillLevels={skillLevels} onRunEnded={handleRunEnded} />;
+    return (
+      <PhaserGame
+        skillLevels={skillLevels}
+        stageNumber={selectedStage}
+        onRunEnded={handleRunEnded}
+      />
+    );
   }
 
   return (
@@ -88,19 +115,34 @@ export default function App() {
           coins={coins}
           skillLevels={skillLevels}
           onUpgrade={handleUpgrade}
-          onStart={handleStart}
+          onStart={handleGoStageSelect}
           busy={busy}
+        />
+      )}
+
+      {screen === SCREEN.STAGE_SELECT && (
+        <StageSelectScreen
+          clearedStages={clearedStages}
+          onSelect={handleStartStage}
+          onBack={handleBackToTree}
         />
       )}
 
       {screen === SCREEN.RESULT && lastResult && (
         <div style={styles.resultWrap}>
-          <h2 style={{ color: "#f87171", margin: 0 }}>RUN ENDED</h2>
+          <h2 style={{ color: lastResult.cleared ? "#fde047" : "#f87171", margin: 0 }}>
+            {lastResult.cleared ? `STAGE ${lastResult.stageNumber} CLEAR!` : "RUN ENDED"}
+          </h2>
           <p style={styles.resultLine}>
             生存時間: <strong>{formatTime(lastResult.survivedSec)}</strong>
           </p>
           <p style={styles.resultLine}>
             獲得コイン: <strong style={{ color: "#fde047" }}>{lastResult.coins}</strong>
+            {lastResult.clearBonus > 0 && (
+              <span style={{ color: "#fde047", fontSize: 14, marginLeft: 8 }}>
+                (クリアボーナス +{lastResult.clearBonus})
+              </span>
+            )}
             {lastResult.retryBonus > 0 && (
               <span style={{ color: "#94a3b8", fontSize: 14, marginLeft: 8 }}>
                 (リトライボーナス +{lastResult.retryBonus})
@@ -108,9 +150,10 @@ export default function App() {
             )}
           </p>
           <p style={styles.resultLine}>所持コイン: <strong>{coins}</strong></p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16 }}>
+          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
             <button style={styles.primaryBtn} onClick={handleBackToTree}>スキルツリーへ</button>
-            <button style={styles.secondaryBtn} onClick={handleStart}>もう一度</button>
+            <button style={styles.secondaryBtn} onClick={() => setScreen(SCREEN.STAGE_SELECT)}>ステージ選択</button>
+            <button style={styles.secondaryBtn} onClick={() => handleStartStage(selectedStage)}>もう一度</button>
           </div>
         </div>
       )}

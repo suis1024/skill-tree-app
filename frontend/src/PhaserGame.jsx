@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import Phaser from "phaser";
 import { makeGameConfig } from "./game/MainScene";
 
-export default function PhaserGame({ skillLevels, onRunEnded }) {
+export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded }) {
   const containerRef = useRef(null);
   const gameRef = useRef(null);
   const onRunEndedRef = useRef(onRunEnded);
@@ -20,11 +20,12 @@ export default function PhaserGame({ skillLevels, onRunEnded }) {
 
     const game = new Phaser.Game(makeGameConfig(containerRef.current));
     game.registry.set("skillLevels", skillLevels || {});
+    game.registry.set("stageNumber", stageNumber);
     game.registry.set("safeAreaTop", Math.max(12, safeTop + 8));
     game.events.on("run-ended", (data) => onRunEndedRef.current?.(data));
     gameRef.current = game;
     return () => game.destroy(true);
-  }, [skillLevels]);
+  }, [skillLevels, stageNumber]);
 
   return (
     <div

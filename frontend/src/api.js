@@ -4,6 +4,7 @@
 const USER_ID_KEY = "skill-tree-shooter:user-id";
 const COINS_KEY = "skill-tree-shooter:coins";
 const SKILLS_KEY = "skill-tree-shooter:skill-levels";
+const STAGES_KEY = "skill-tree-shooter:cleared-stages";
 
 function generateId() {
   return "u_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
@@ -43,9 +44,38 @@ function writeSkills(skills) {
   localStorage.setItem(SKILLS_KEY, JSON.stringify(skills));
 }
 
+function readClearedStages() {
+  const raw = localStorage.getItem(STAGES_KEY);
+  if (!raw) return [];
+  try {
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return [];
+    return arr.filter((n) => Number.isInteger(n) && n >= 1).sort((a, b) => a - b);
+  } catch {
+    return [];
+  }
+}
+
+function writeClearedStages(arr) {
+  localStorage.setItem(STAGES_KEY, JSON.stringify(arr));
+}
+
 // API は Promise を返す形を維持 (将来クラウド同期に戻す余地)。
 export async function fetchProgress(userId) {
-  return { user_id: userId, coins: readCoins(), skill_levels: readSkills() };
+  return {
+    user_id: userId,
+    coins: readCoins(),
+    skill_levels: readSkills(),
+    cleared_stages: readClearedStages(),
+  };
+}
+
+export async function markStageCleared(userId, stageNumber) {
+  const cleared = new Set(readClearedStages());
+  cleared.add(stageNumber);
+  const next = Array.from(cleared).sort((a, b) => a - b);
+  writeClearedStages(next);
+  return { user_id: userId, cleared_stages: next };
 }
 
 export async function addCoins(userId, coins) {
