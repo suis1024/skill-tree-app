@@ -75,10 +75,7 @@ export default function App() {
 
       {screen === SCREEN.ERROR && (
         <div style={styles.center}>
-          <p>サーバーに接続できません: {error}</p>
-          <p style={{ color: "#94a3b8", fontSize: 12 }}>
-            backend を起動してください: <code>cd backend && uv run uvicorn main:app --reload</code>
-          </p>
+          <p>エラー: {error}</p>
         </div>
       )}
 
