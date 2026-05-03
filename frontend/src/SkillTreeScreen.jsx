@@ -79,15 +79,15 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
 }
 
 const styles = {
-  wrap: { padding: "16px 24px", color: "#e2e8f0" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
+  wrap: { padding: "16px 16px", color: "#e2e8f0" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 },
   headerRight: { display: "flex", alignItems: "center", gap: 16 },
   coin: { fontSize: 18, color: "#fde047" },
   startButton: {
     background: "#22c55e", color: "#0f172a", border: "none", padding: "10px 22px",
     fontSize: 16, fontWeight: 700, borderRadius: 6, cursor: "pointer",
   },
-  columns: { display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16 },
+  columns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 },
   column: { background: "#0f172a", border: "1px solid #1e293b", borderTopWidth: 4, borderRadius: 6, padding: 12 },
   colTitle: { margin: "0 0 12px", fontSize: 18 },
   skillCard: { background: "#1e293b", borderRadius: 6, padding: 10, marginBottom: 10 },

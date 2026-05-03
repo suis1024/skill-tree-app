@@ -1,8 +1,6 @@
 import Phaser from "phaser";
 import { computeStats } from "./skills";
 
-const WORLD_WIDTH = 960;
-const WORLD_HEIGHT = 720;
 const PLAYER_BASE_SPEED = 220;
 const BULLET_SPEED = 500;
 const BULLET_BASE_INTERVAL_MS = 350;
@@ -21,6 +19,17 @@ export default class MainScene extends Phaser.Scene {
   create() {
     this.cameras.main.setBackgroundColor("#0f172a");
 
+    this.worldWidth = this.scale.width;
+    this.worldHeight = this.scale.height;
+    this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
+
+    this.scale.on("resize", (gameSize) => {
+      this.worldWidth = gameSize.width;
+      this.worldHeight = gameSize.height;
+      this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
+      if (this.timeText) this.timeText.setX(this.worldWidth - 16);
+    });
+
     const skillLevels = this.registry.get("skillLevels") || {};
     this.stats = computeStats(skillLevels);
 
@@ -33,7 +42,7 @@ export default class MainScene extends Phaser.Scene {
     this.invincibleUntil = 0;
     this.reviveAvailable = this.stats.hasRevive;
 
-    this.player = this.add.rectangle(WORLD_WIDTH / 2, WORLD_HEIGHT / 2, 28, 28, 0x60a5fa);
+    this.player = this.add.rectangle(this.worldWidth / 2, this.worldHeight / 2, 28, 28, 0x60a5fa);
     this.physics.add.existing(this.player);
     this.player.body.setCollideWorldBounds(true);
     this.aimDir = new Phaser.Math.Vector2(1, 0);
@@ -42,12 +51,26 @@ export default class MainScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.coinSprites = this.physics.add.group();
 
-    this.cursors = this.input.keyboard.addKeys({
+    this.keysWasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
       down: Phaser.Input.Keyboard.KeyCodes.S,
       left: Phaser.Input.Keyboard.KeyCodes.A,
       right: Phaser.Input.Keyboard.KeyCodes.D,
     });
+    this.keysArrow = this.input.keyboard.createCursorKeys();
+
+    this.touchVector = { x: 0, y: 0 };
+    this.joystickActive = false;
+    this.joystickStart = { x: 0, y: 0 };
+    this.joystickMaxDist = 60;
+
+    this.joystickBase = this.add.circle(0, 0, this.joystickMaxDist, 0xffffff, 0.12).setVisible(false).setDepth(1000);
+    this.joystickKnob = this.add.circle(0, 0, 22, 0xffffff, 0.28).setVisible(false).setDepth(1001);
+
+    this.input.on("pointerdown", (pointer) => this.onTouchDown(pointer));
+    this.input.on("pointermove", (pointer) => this.onTouchMove(pointer));
+    this.input.on("pointerup", () => this.onTouchUp());
+    this.input.on("pointerupoutside", () => this.onTouchUp());
 
     const fireDelay = Math.max(60, BULLET_BASE_INTERVAL_MS / this.stats.fireRateMul);
     this.fireTimer = this.time.addEvent({
@@ -71,9 +94,11 @@ export default class MainScene extends Phaser.Scene {
 
   createHud() {
     const style = { fontFamily: "system-ui, sans-serif", fontSize: "18px", color: "#e2e8f0" };
-    this.hpText = this.add.text(16, 12, "", style);
-    this.coinText = this.add.text(16, 36, "", style);
-    this.timeText = this.add.text(WORLD_WIDTH - 16, 12, "", style).setOrigin(1, 0);
+    const top = this.registry.get("safeAreaTop") || 12;
+    this.hudTop = top;
+    this.hpText = this.add.text(16, top, "", style).setDepth(2000);
+    this.coinText = this.add.text(16, top + 24, "", style).setDepth(2000);
+    this.timeText = this.add.text(this.worldWidth - 16, top, "", style).setOrigin(1, 0).setDepth(2000);
     this.refreshHud();
   }
 
@@ -104,13 +129,27 @@ export default class MainScene extends Phaser.Scene {
 
     const body = this.player.body;
     const speed = PLAYER_BASE_SPEED * this.stats.speedMul;
-    const vx = (this.cursors.left.isDown ? -1 : 0) + (this.cursors.right.isDown ? 1 : 0);
-    const vy = (this.cursors.up.isDown ? -1 : 0) + (this.cursors.down.isDown ? 1 : 0);
 
-    if (vx !== 0 || vy !== 0) {
-      const len = Math.hypot(vx, vy);
-      body.setVelocity((vx / len) * speed, (vy / len) * speed);
-      this.aimDir.set(vx / len, vy / len);
+    let vx = 0, vy = 0;
+    if (this.joystickActive) {
+      vx = this.touchVector.x;
+      vy = this.touchVector.y;
+    } else {
+      const leftDown = this.keysWasd.left.isDown || this.keysArrow.left.isDown;
+      const rightDown = this.keysWasd.right.isDown || this.keysArrow.right.isDown;
+      const upDown = this.keysWasd.up.isDown || this.keysArrow.up.isDown;
+      const downDown = this.keysWasd.down.isDown || this.keysArrow.down.isDown;
+      vx = (leftDown ? -1 : 0) + (rightDown ? 1 : 0);
+      vy = (upDown ? -1 : 0) + (downDown ? 1 : 0);
+    }
+
+    const mag = Math.hypot(vx, vy);
+    if (mag > 0.01) {
+      const nx = vx / mag;
+      const ny = vy / mag;
+      const intensity = Math.min(mag, 1);
+      body.setVelocity(nx * speed * intensity, ny * speed * intensity);
+      this.aimDir.set(nx, ny);
     } else {
       body.setVelocity(0, 0);
     }
@@ -145,6 +184,46 @@ export default class MainScene extends Phaser.Scene {
     this.refreshHud();
   }
 
+  onTouchDown(pointer) {
+    this.joystickActive = true;
+    this.joystickStart.x = pointer.x;
+    this.joystickStart.y = pointer.y;
+    this.touchVector.x = 0;
+    this.touchVector.y = 0;
+    this.joystickBase.setPosition(pointer.x, pointer.y).setVisible(true);
+    this.joystickKnob.setPosition(pointer.x, pointer.y).setVisible(true);
+  }
+
+  onTouchMove(pointer) {
+    if (!this.joystickActive) return;
+    const dx = pointer.x - this.joystickStart.x;
+    const dy = pointer.y - this.joystickStart.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) {
+      this.touchVector.x = 0;
+      this.touchVector.y = 0;
+      this.joystickKnob.setPosition(this.joystickStart.x, this.joystickStart.y);
+      return;
+    }
+    const clamped = Math.min(len, this.joystickMaxDist);
+    const nx = dx / len;
+    const ny = dy / len;
+    this.touchVector.x = nx * (clamped / this.joystickMaxDist);
+    this.touchVector.y = ny * (clamped / this.joystickMaxDist);
+    this.joystickKnob.setPosition(
+      this.joystickStart.x + nx * clamped,
+      this.joystickStart.y + ny * clamped,
+    );
+  }
+
+  onTouchUp() {
+    this.joystickActive = false;
+    this.touchVector.x = 0;
+    this.touchVector.y = 0;
+    this.joystickBase.setVisible(false);
+    this.joystickKnob.setVisible(false);
+  }
+
   fireBullet() {
     if (this.gameOverActive) return;
     const count = this.stats.bulletCount;
@@ -169,10 +248,10 @@ export default class MainScene extends Phaser.Scene {
     if (this.gameOverActive) return;
     const side = Phaser.Math.Between(0, 3);
     let x, y;
-    if (side === 0) { x = 0; y = Phaser.Math.Between(0, WORLD_HEIGHT); }
-    else if (side === 1) { x = WORLD_WIDTH; y = Phaser.Math.Between(0, WORLD_HEIGHT); }
-    else if (side === 2) { x = Phaser.Math.Between(0, WORLD_WIDTH); y = 0; }
-    else { x = Phaser.Math.Between(0, WORLD_WIDTH); y = WORLD_HEIGHT; }
+    if (side === 0) { x = 0; y = Phaser.Math.Between(0, this.worldHeight); }
+    else if (side === 1) { x = this.worldWidth; y = Phaser.Math.Between(0, this.worldHeight); }
+    else if (side === 2) { x = Phaser.Math.Between(0, this.worldWidth); y = 0; }
+    else { x = Phaser.Math.Between(0, this.worldWidth); y = this.worldHeight; }
     const enemy = this.add.rectangle(x, y, 24, 24, 0xef4444);
     this.enemies.add(enemy);
     enemy.hp = ENEMY_BASE_HP;
@@ -253,13 +332,20 @@ export default class MainScene extends Phaser.Scene {
   }
 }
 
-export const GAME_CONFIG = {
-  type: Phaser.AUTO,
-  width: WORLD_WIDTH,
-  height: WORLD_HEIGHT,
-  physics: {
-    default: "arcade",
-    arcade: { gravity: { y: 0 } },
-  },
-  scene: [MainScene],
-};
+export function makeGameConfig(parent) {
+  return {
+    type: Phaser.AUTO,
+    parent,
+    scale: {
+      mode: Phaser.Scale.RESIZE,
+      autoCenter: Phaser.Scale.CENTER_BOTH,
+      width: "100%",
+      height: "100%",
+    },
+    physics: {
+      default: "arcade",
+      arcade: { gravity: { y: 0 } },
+    },
+    scene: [MainScene],
+  };
+}

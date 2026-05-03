@@ -64,6 +64,10 @@ export default function App() {
 
   const handleBackToTree = () => setScreen(SCREEN.TREE);
 
+  if (screen === SCREEN.GAME) {
+    return <PhaserGame skillLevels={skillLevels} onRunEnded={handleRunEnded} />;
+  }
+
   return (
     <div style={styles.app}>
       <header style={styles.header}>
@@ -87,15 +91,6 @@ export default function App() {
           onStart={handleStart}
           busy={busy}
         />
-      )}
-
-      {screen === SCREEN.GAME && (
-        <div>
-          <p style={{ textAlign: "center", color: "#94a3b8", margin: "0 0 12px" }}>
-            WASD で移動 / 武器は自動発射
-          </p>
-          <PhaserGame skillLevels={skillLevels} onRunEnded={handleRunEnded} />
-        </div>
       )}
 
       {screen === SCREEN.RESULT && lastResult && (
@@ -130,7 +125,9 @@ function formatTime(sec) {
 }
 
 const styles = {
-  app: { padding: 16 },
+  app: {
+    padding: "calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px)",
+  },
   header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12, padding: "0 8px" },
   title: { margin: 0, fontSize: 22 },
   userId: { fontSize: 12, color: "#64748b" },
