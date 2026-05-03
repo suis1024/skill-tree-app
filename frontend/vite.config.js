@@ -1,8 +1,9 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// https://vite.dev/config/
+// iOS (Capacitor) では '/' 必須、GitHub Pages では '/skill-tree-app/'
+// VITE_BASE で上書き可能
 export default defineConfig({
   plugins: [react()],
-  base: '/skill-tree-app/',
+  base: process.env.VITE_BASE ?? '/skill-tree-app/',
 })
