@@ -3,7 +3,7 @@ export const ENEMY_TYPES = {
   grunt: {
     color: 0xef4444,
     size: 24,
-    hp: 1,
+    hp: 3,
     speed: 90,
     contactDamage: 1,
     coinDrop: 1,
@@ -12,7 +12,7 @@ export const ENEMY_TYPES = {
   swift: {
     color: 0x60a5fa,
     size: 18,
-    hp: 1,
+    hp: 2,
     speed: 130,
     contactDamage: 1,
     coinDrop: 1,
@@ -21,7 +21,7 @@ export const ENEMY_TYPES = {
   tank: {
     color: 0xa855f7,
     size: 36,
-    hp: 6,
+    hp: 15,
     speed: 55,
     contactDamage: 2,
     coinDrop: 4,
@@ -30,7 +30,7 @@ export const ENEMY_TYPES = {
   shooter: {
     color: 0xfbbf24,
     size: 22,
-    hp: 2,
+    hp: 5,
     speed: 70,
     contactDamage: 1,
     coinDrop: 2,
@@ -41,33 +41,40 @@ export const ENEMY_TYPES = {
   },
 };
 
-// 経過時間 (秒) に応じて出現可能な敵タイプを返す。
-export function availableTypes(elapsedSec) {
+// 経過時間 (秒) とステージ番号に応じて出現可能な敵タイプを返す。
+// ステージが進むほど解禁が早まる。
+export function availableTypes(elapsedSec, stageNumber = 1) {
+  const acc = Math.max(0, (stageNumber - 1) * 12); // st2 で +12s 分加速
+  const t = elapsedSec + acc;
   const types = ["grunt"];
-  if (elapsedSec >= 30) types.push("swift");
-  if (elapsedSec >= 90) types.push("tank");
-  if (elapsedSec >= 180) types.push("shooter");
+  if (t >= 30) types.push("swift");
+  if (t >= 70) types.push("tank");
+  if (t >= 130) types.push("shooter");
   return types;
 }
 
-// 経過秒に応じてスポーン間隔 (ms) を線形補間。1.0s → 0.4s を 5 分かけて。
+// 経過秒に応じてスポーン間隔 (ms)。後半ほど短く。最小 250ms (難易度倍率で更に短縮可)。
 export function spawnIntervalMs(elapsedSec) {
-  const t = Math.min(1, elapsedSec / 300);
-  return Math.round(1000 - t * 600);
+  const t = Math.min(1, elapsedSec / 90);
+  return Math.round(900 - t * 600); // 0s: 900ms → 90s: 300ms
 }
 
-// 1 回のスポーンで何体出すか。後半は群れで出る。
-export function spawnBatchSize(elapsedSec) {
-  if (elapsedSec >= 240) return 3;
-  if (elapsedSec >= 120) return 2;
-  return 1;
+// 1 回のスポーンで何体出すか。後半・後ステージほど多い。
+export function spawnBatchSize(elapsedSec, stageNumber = 1) {
+  let n = 1;
+  if (elapsedSec >= 50) n += 1;
+  if (elapsedSec >= 80) n += 1;
+  if (stageNumber >= 5) n += 1;
+  if (stageNumber >= 8) n += 1;
+  return Math.min(6, n);
 }
 
-// 出現タイプの重み付き選択 (時間が進むと強い敵の出現率も上がる)。
-export function pickEnemyType(elapsedSec, rng = Math.random) {
-  const types = availableTypes(elapsedSec);
-  // 単純: 後から解禁された敵ほど重みを少し下げる
-  const weights = types.map((_, i) => Math.max(1, 4 - i));
+// 出現タイプの重み付き選択 (経過秒+ステージ番号で強い敵の出現率も上がる)。
+export function pickEnemyType(elapsedSec, stageNumber = 1, rng = Math.random) {
+  const types = availableTypes(elapsedSec, stageNumber);
+  // ステージ後半は強い敵 (後ろのもの) の重みを上げる
+  const stageBoost = Math.min(3, (stageNumber - 1) * 0.3);
+  const weights = types.map((_, i) => Math.max(1, 4 - i + i * stageBoost));
   const total = weights.reduce((a, b) => a + b, 0);
   let r = rng() * total;
   for (let i = 0; i < types.length; i++) {

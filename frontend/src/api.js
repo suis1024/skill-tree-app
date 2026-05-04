@@ -1,6 +1,8 @@
 // 進捗は全部ブラウザの localStorage に保存。サーバー不要。
 // 関数シグネチャはサーバー版と同じに保つ (App.jsx 側を変えなくて済むように)。
 
+import { SKILLS, SKILL_BY_ID, isUnlockable, totalSpent } from "./game/skills";
+
 const USER_ID_KEY = "skill-tree-shooter:user-id";
 const COINS_KEY = "skill-tree-shooter:coins";
 const SKILLS_KEY = "skill-tree-shooter:skill-levels";
@@ -70,6 +72,20 @@ export async function fetchProgress(userId) {
   };
 }
 
+// 全スキルを Lv0 にリセット。これまでに支払ったコインを全額返す。
+export async function resetSkills(userId) {
+  const skills = readSkills();
+  let refund = 0;
+  for (const def of SKILLS) {
+    const lv = skills[def.id] || 0;
+    if (lv > 0) refund += totalSpent(def, lv);
+  }
+  writeSkills({});
+  const next = readCoins() + refund;
+  writeCoins(next);
+  return { user_id: userId, coins: next, refund };
+}
+
 export async function markStageCleared(userId, stageNumber) {
   const cleared = new Set(readClearedStages());
   cleared.add(stageNumber);
@@ -91,12 +107,20 @@ export async function upgradeSkill(userId, skillId, cost) {
   if (!Number.isFinite(cost) || cost < 0) {
     throw new Error("cost must be a non-negative number");
   }
+  const skillDef = SKILL_BY_ID[skillId];
+  if (!skillDef) throw new Error(`unknown skill: ${skillId}`);
+  const skills = readSkills();
+  if (!isUnlockable(skillDef, skills)) {
+    throw new Error("前提条件を満たしていません");
+  }
+  if ((skills[skillId] ?? 0) >= skillDef.maxLevel) {
+    throw new Error("already maxed");
+  }
   const coins = readCoins();
   if (coins < cost) {
-    throw new Error("not enough coins");
+    throw new Error("コインが足りません");
   }
   writeCoins(coins - cost);
-  const skills = readSkills();
   const nextLevel = (skills[skillId] ?? 0) + 1;
   skills[skillId] = nextLevel;
   writeSkills(skills);

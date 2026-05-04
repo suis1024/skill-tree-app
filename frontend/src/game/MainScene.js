@@ -3,13 +3,11 @@ import { computeStats } from "./skills";
 import { ENEMY_TYPES, pickEnemyType, spawnIntervalMs, spawnBatchSize } from "./enemies";
 import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
 import { bossForStage } from "./bosses";
+import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
 
 const PLAYER_BASE_SPEED = 220;
-const BULLET_SPEED = 500;
-const BULLET_BASE_INTERVAL_MS = 350;
 const COIN_BASE_PICKUP_RADIUS = 60;
 const COIN_MAGNET_SPEED = 320;
-const BULLET_BASE_DAMAGE = 1;
 const ENEMY_BULLET_DAMAGE = 1;
 
 export default class MainScene extends Phaser.Scene {
@@ -58,6 +56,7 @@ export default class MainScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.enemyBullets = this.physics.add.group();
     this.coinSprites = this.physics.add.group();
+    this.enemyHpBars = [];
 
     this.keysWasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -80,12 +79,20 @@ export default class MainScene extends Phaser.Scene {
     this.input.on("pointerup", () => this.onTouchUp());
     this.input.on("pointerupoutside", () => this.onTouchUp());
 
-    const fireDelay = Math.max(60, BULLET_BASE_INTERVAL_MS / this.stats.fireRateMul);
-    this.fireTimer = this.time.addEvent({
-      delay: fireDelay,
-      loop: true,
-      callback: () => this.fireBullet(),
-    });
+    this.weaponTimers = [];
+    for (const wid of this.stats.weapons) {
+      const w = WEAPONS[wid];
+      if (!w) continue;
+      const delay = Math.max(60, w.fireIntervalMs / this.stats.fireRateMul);
+      const timer = this.time.addEvent({
+        delay,
+        loop: true,
+        callback: () => w.fire(this),
+      });
+      this.weaponTimers.push(timer);
+      // オービタルは初回 fire ですぐ展開しておく (タイマー1周分待たない)
+      if (wid === "orbital") w.fire(this);
+    }
 
     this.currentSpawnInterval = spawnIntervalMs(0);
     this.spawnTimer = this.time.addEvent({
@@ -121,8 +128,7 @@ export default class MainScene extends Phaser.Scene {
 
   refreshHud() {
     const hp = Math.max(0, Math.floor(this.hp));
-    const empty = Math.max(0, this.maxHp - hp);
-    this.hpText.setText(`HP: ${"♥".repeat(hp)}${"·".repeat(empty)}`);
+    this.hpText.setText(`HP ${hp}/${this.maxHp}`);
     this.coinText.setText(`COIN: ${this.coins}`);
     if (this.phase === "wave") {
       const remain = Math.max(0, WAVE_DURATION_MS - this.elapsedMs);
@@ -222,7 +228,12 @@ export default class MainScene extends Phaser.Scene {
             this.fireRing(enemy, 14, 230);
           }
         } else {
+          // chase デフォルト: 追跡しつつ 2.5 秒に 1 回リング弾
           enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+          if (this.time.now >= enemy.nextBurstAt) {
+            enemy.nextBurstAt = this.time.now + 2500;
+            this.fireRing(enemy, 8, 200);
+          }
         }
       } else if (enemy.canShoot && enemy.preferredDistance) {
         const diff = dist - enemy.preferredDistance;
@@ -249,7 +260,7 @@ export default class MainScene extends Phaser.Scene {
       if (this.elapsedMs - this.lastSpawnTuneMs > 2000) {
         this.lastSpawnTuneMs = this.elapsedMs;
         const baseInterval = spawnIntervalMs(this.elapsedMs / 1000);
-        const next = Math.max(150, Math.round(baseInterval / this.difficultyMul));
+        const next = Math.max(80, Math.round(baseInterval / this.difficultyMul));
         if (next !== this.currentSpawnInterval) {
           this.currentSpawnInterval = next;
           this.spawnTimer.delay = next;
@@ -257,6 +268,11 @@ export default class MainScene extends Phaser.Scene {
       }
       if (this.elapsedMs >= WAVE_DURATION_MS) {
         this.startBossPhase();
+      }
+    } else if (this.phase === "boss" && (!this.boss || !this.boss.active)) {
+      // ボススポーン後 3 秒経ってもボスがいなければリトライ (タイマー失火対策)
+      if (this.elapsedMs - (this.bossPhaseStartedMs || 0) > 3000) {
+        this.spawnBoss();
       }
     }
 
@@ -278,6 +294,10 @@ export default class MainScene extends Phaser.Scene {
       this.invincibleUntil = 0;
       this.player.setAlpha(1);
     }
+
+    updateHomingBullets(this);
+    updateOrbitals(this, delta);
+    this.updateEnemyHpBars();
 
     this.refreshHud();
   }
@@ -322,32 +342,12 @@ export default class MainScene extends Phaser.Scene {
     this.joystickKnob.setVisible(false);
   }
 
-  fireBullet() {
-    if (this.gameOverActive) return;
-    const count = this.stats.bulletCount;
-    const spread = (count - 1) * 0.18;
-    const baseAngle = Math.atan2(this.aimDir.y, this.aimDir.x);
-    const start = baseAngle - spread / 2;
-    for (let i = 0; i < count; i++) {
-      const angle = count === 1 ? baseAngle : start + (spread * i) / (count - 1);
-      const isCrit = Math.random() < this.stats.critChance;
-      const damage = BULLET_BASE_DAMAGE * this.stats.damageMul * (isCrit ? 2 : 1);
-      const color = isCrit ? 0xfb923c : 0xfacc15;
-      const bullet = this.add.rectangle(this.player.x, this.player.y, isCrit ? 10 : 8, isCrit ? 10 : 8, color);
-      this.bullets.add(bullet);
-      bullet.body.setVelocity(Math.cos(angle) * BULLET_SPEED, Math.sin(angle) * BULLET_SPEED);
-      bullet.damage = damage;
-      bullet.pierceLeft = this.stats.pierce;
-      this.time.delayedCall(2000, () => bullet.destroy());
-    }
-  }
-
   spawnWave() {
     if (this.gameOverActive || this.phase !== "wave") return;
     const elapsedSec = this.elapsedMs / 1000;
-    const batch = spawnBatchSize(elapsedSec);
+    const batch = spawnBatchSize(elapsedSec, this.stageNumber);
     for (let i = 0; i < batch; i++) {
-      const type = pickEnemyType(elapsedSec);
+      const type = pickEnemyType(elapsedSec, this.stageNumber);
       this.spawnEnemy(type);
     }
   }
@@ -355,8 +355,14 @@ export default class MainScene extends Phaser.Scene {
   startBossPhase() {
     if (this.phase !== "wave") return;
     this.phase = "boss";
+    this.bossPhaseStartedMs = this.elapsedMs;
     this.spawnTimer.remove();
-    this.enemies.children.iterate((e) => e && e.destroy());
+    this.enemies.children.iterate((e) => {
+      if (!e) return;
+      if (e.hpBar) e.hpBar.destroy();
+      if (e.hpBarBg) e.hpBarBg.destroy();
+      e.destroy();
+    });
     this.enemyBullets.children.iterate((e) => e && e.destroy());
     this.cameras.main.flash(400, 200, 50, 50);
     this.cameras.main.shake(300, 0.01);
@@ -380,7 +386,13 @@ export default class MainScene extends Phaser.Scene {
   }
 
   spawnBoss() {
+    if (this.gameOverActive || this.phase !== "boss") return;
+    if (this.boss && this.boss.active) return; // 重複防止
     const def = bossForStage(this.stageNumber);
+    if (!def) {
+      console.warn("spawnBoss: no def for stage", this.stageNumber);
+      return;
+    }
     const x = this.worldWidth / 2;
     const y = Math.min(120, this.worldHeight * 0.2);
     const boss = this.add.rectangle(x, y, def.size, def.size, def.color);
@@ -400,6 +412,9 @@ export default class MainScene extends Phaser.Scene {
     boss.nextShotAt = this.time.now + 1000;
     boss.nextBurstAt = this.time.now + 3000;
     this.boss = boss;
+    // プレイヤーがボススポーン位置に重なってたら一瞬無敵 (即死防止)
+    this.invincibleUntil = Math.max(this.invincibleUntil, this.time.now + 800);
+    this.player.setAlpha(0.4);
   }
 
   fireBossBullets(boss, nx, ny) {
@@ -449,6 +464,7 @@ export default class MainScene extends Phaser.Scene {
     this.enemies.add(enemy);
     enemy.typeId = typeId;
     enemy.hp = Math.max(1, Math.round(def.hp * this.difficultyMul));
+    enemy.hpMax = enemy.hp;
     enemy.speed = def.speed * (1 + (this.difficultyMul - 1) * 0.4);
     enemy.contactDamage = Math.max(1, Math.round(def.contactDamage * this.difficultyMul));
     enemy.coinDrop = def.coinDrop;
@@ -479,13 +495,63 @@ export default class MainScene extends Phaser.Scene {
   }
 
   onBulletHit(bullet, enemy) {
-    enemy.hp -= bullet.damage;
+    if (bullet.isOrbital) {
+      // オービタルは連打を防ぐため敵側に短いクールダウン
+      const now = this.time.now;
+      enemy._orbitalImmuneUntil = enemy._orbitalImmuneUntil || 0;
+      if (now < enemy._orbitalImmuneUntil) return;
+      enemy._orbitalImmuneUntil = now + 250;
+      this.damageEnemy(enemy, bullet.damage);
+      return;
+    }
+    this.damageEnemy(enemy, bullet.damage);
     if (bullet.pierceLeft > 0) {
       bullet.pierceLeft -= 1;
     } else {
       bullet.destroy();
     }
-    if (enemy.hp <= 0) this.killEnemy(enemy);
+  }
+
+  damageEnemy(enemy, dmg) {
+    if (!enemy || !enemy.active) return;
+    enemy.hp -= dmg;
+    if (enemy.hp <= 0) {
+      this.killEnemy(enemy);
+      return;
+    }
+    this.ensureEnemyHpBar(enemy);
+  }
+
+  ensureEnemyHpBar(enemy) {
+    if (enemy.hpBar || enemy.isBoss) return;
+    const w = Math.max(18, (enemy.displayWidth || 24) * 0.9);
+    const h = 4;
+    enemy.hpBarWidth = w;
+    enemy.hpBarBg = this.add.rectangle(enemy.x, enemy.y + (enemy.displayHeight || 24) / 2 + 8, w, h, 0x1f2937)
+      .setOrigin(0.5, 0).setDepth(1500);
+    enemy.hpBar = this.add.rectangle(enemy.x - w / 2, enemy.y + (enemy.displayHeight || 24) / 2 + 8, w, h, 0xef4444)
+      .setOrigin(0, 0).setDepth(1501);
+    if (!this.enemyHpBars) this.enemyHpBars = [];
+    this.enemyHpBars.push({ owner: enemy, bg: enemy.hpBarBg, fg: enemy.hpBar });
+  }
+
+  updateEnemyHpBars() {
+    if (!this.enemyHpBars) return;
+    // 所有者が消えたバーを掃除しつつ、生きてるものだけ位置更新
+    this.enemyHpBars = this.enemyHpBars.filter((entry) => {
+      const e = entry.owner;
+      if (!e || !e.active) {
+        if (entry.bg && entry.bg.scene) entry.bg.destroy();
+        if (entry.fg && entry.fg.scene) entry.fg.destroy();
+        return false;
+      }
+      const yOff = (e.displayHeight || 24) / 2 + 8;
+      entry.bg.setPosition(e.x, e.y + yOff);
+      entry.fg.setPosition(e.x - e.hpBarWidth / 2, e.y + yOff);
+      const ratio = Math.max(0, e.hp) / e.hpMax;
+      entry.fg.width = e.hpBarWidth * ratio;
+      return true;
+    });
   }
 
   killEnemy(enemy) {
@@ -493,6 +559,8 @@ export default class MainScene extends Phaser.Scene {
     const y = enemy.y;
     const dropCount = enemy.coinDrop || 1;
     const wasBoss = enemy.isBoss;
+    if (enemy.hpBar) enemy.hpBar.destroy();
+    if (enemy.hpBarBg) enemy.hpBarBg.destroy();
     enemy.destroy();
     for (let i = 0; i < dropCount; i++) {
       const isLucky = Math.random() < this.stats.luckyChance;
@@ -588,7 +656,7 @@ export default class MainScene extends Phaser.Scene {
   endRun(cleared = false) {
     if (this.gameOverActive) return;
     this.gameOverActive = true;
-    if (this.fireTimer) this.fireTimer.remove();
+    if (this.weaponTimers) this.weaponTimers.forEach((t) => t.remove());
     if (this.spawnTimer) this.spawnTimer.remove();
     if (!cleared) this.player.setFillStyle(0x475569);
     this.player.setAlpha(1);

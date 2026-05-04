@@ -1,45 +1,127 @@
 export const COST_TABLE = [10, 25, 50, 100, 200];
 
 export const CATEGORIES = {
-  attack: { label: "攻撃", color: "#ef4444" },
+  weapon:  { label: "武器", color: "#a78bfa" },
+  attack:  { label: "攻撃", color: "#ef4444" },
   defense: { label: "防御", color: "#3b82f6" },
   economy: { label: "経済", color: "#22c55e" },
 };
 
+// ツリーレイアウト用座標 (論理座標、SVG にマップ)。
+// レイアウト: 中央に「攻撃」、左に「武器」、右上に「防御」、右下に「経済」を配置。
+// 縦は y、横は x。原点は左上。
+
+export const TREE_VIEWBOX = { width: 1000, height: 900 };
+
+// requires: 親スキルが指定 level 以上のときだけ取得可能。
+// アンロック系 (maxLevel: 1) は「装備武器の解放」を表す。
+// pos は SVG 上の座標。
 export const SKILLS = [
-  // 攻撃系
-  { id: "atk_power",   category: "attack",  name: "攻撃力アップ",      maxLevel: 5, perLevel: 0.20, desc: "弾のダメージが増える (+20% / Lv)" },
-  { id: "atk_speed",   category: "attack",  name: "攻撃速度アップ",    maxLevel: 5, perLevel: 0.20, desc: "弾の発射間隔が短くなる (-20% / Lv に近づく)" },
-  { id: "atk_crit",    category: "attack",  name: "クリティカル率",    maxLevel: 5, perLevel: 0.10, desc: "クリティカル発生率 (+10% / Lv)。クリ時 ×2 ダメージ" },
-  { id: "atk_pierce",  category: "attack",  name: "弾の貫通",          maxLevel: 5, perLevel: 1,    desc: "弾が貫通する敵数 (+1 / Lv)" },
-  { id: "atk_multi",   category: "attack",  name: "弾数追加",          maxLevel: 5, perLevel: 1,    desc: "1回の発射で出る弾数 (+1 / Lv)。扇状に拡散" },
+  // ===== 攻撃系 (中央縦軸) =====
+  { id: "atk_power",  category: "attack", name: "攻撃力アップ",   maxLevel: 5, desc: "全武器のダメージ +20% / Lv",
+    pos: { x: 500, y: 460 } },
+  { id: "atk_speed",  category: "attack", name: "攻撃速度アップ", maxLevel: 5, desc: "発射間隔 -20% / Lv (近づくほど効果薄)",
+    requires: { id: "atk_power", level: 1 }, pos: { x: 500, y: 340 } },
+  { id: "atk_crit",   category: "attack", name: "クリティカル率", maxLevel: 5, desc: "クリ率 +10% / Lv。クリ時 ×2 ダメ",
+    requires: { id: "atk_speed", level: 2 }, pos: { x: 500, y: 220 } },
+  { id: "atk_pierce", category: "attack", name: "弾の貫通",       maxLevel: 5, desc: "ピストル弾の貫通敵数 +1 / Lv",
+    requires: { id: "atk_power", level: 1 }, pos: { x: 380, y: 380 } },
+  { id: "atk_multi",  category: "attack", name: "ピストル弾数",   maxLevel: 5, desc: "ピストル 1 発の弾数 +1 / Lv (扇状に拡散)",
+    requires: { id: "atk_pierce", level: 1 }, pos: { x: 280, y: 300 } },
 
-  // 防御系
-  { id: "def_hp",      category: "defense", name: "最大HPアップ",      maxLevel: 5, perLevel: 2,    desc: "最大HP (+2 / Lv)" },
-  { id: "def_regen",   category: "defense", name: "HP自然回復",        maxLevel: 5, perLevel: 0.5,  desc: "HP自然回復 (+0.5 HP/秒 / Lv)" },
-  { id: "def_speed",   category: "defense", name: "移動速度アップ",    maxLevel: 5, perLevel: 0.20, desc: "移動速度 (+20% / Lv)" },
-  { id: "def_armor",   category: "defense", name: "被ダメージ軽減",    maxLevel: 5, perLevel: 0.10, desc: "被ダメージ軽減 (-10% / Lv、最大-50%)" },
-  { id: "def_revive",  category: "defense", name: "復活",              maxLevel: 1, perLevel: 1,    desc: "HP0で1回だけ自動復活（HP満タンで再開）" },
+  // ===== 武器系 (左側) =====
+  { id: "wpn_unlock_bomb",    category: "weapon", name: "爆弾",       maxLevel: 1, desc: "近くの敵に放物線で爆弾を投げる",
+    costOverrides: [40], requires: { id: "atk_power", level: 1 },
+    pos: { x: 360, y: 540 } },
+  { id: "wpn_unlock_thunder", category: "weapon", name: "サンダー",   maxLevel: 1, desc: "近くの敵に落雷、3 体まで連鎖",
+    costOverrides: [80], requires: { id: "wpn_unlock_bomb", level: 1 },
+    pos: { x: 220, y: 580 } },
+  { id: "wpn_unlock_homing",  category: "weapon", name: "ホーミング", maxLevel: 1, desc: "敵を追尾する弾を発射",
+    costOverrides: [60], requires: { id: "atk_power", level: 1 },
+    pos: { x: 360, y: 660 } },
+  { id: "wpn_unlock_orbital", category: "weapon", name: "オービタル", maxLevel: 1, desc: "周囲を回る弾で接触ダメージ",
+    costOverrides: [100], requires: { id: "wpn_unlock_homing", level: 1 },
+    pos: { x: 220, y: 720 } },
 
-  // 経済系
-  { id: "eco_coin",    category: "economy", name: "コイン獲得アップ",  maxLevel: 5, perLevel: 0.20, desc: "敵から得られるコイン (+20% / Lv)" },
-  { id: "eco_magnet",  category: "economy", name: "コイン磁力アップ",  maxLevel: 5, perLevel: 0.30, desc: "コインを引き寄せる範囲 (+30% / Lv)" },
-  { id: "eco_start",   category: "economy", name: "開始時ボーナス",    maxLevel: 5, perLevel: 5,    desc: "ラン開始時に手持ちコイン +5 / Lv" },
-  { id: "eco_retry",   category: "economy", name: "リトライボーナス",  maxLevel: 5, perLevel: 0.10, desc: "死亡時、未獲得コインの (10% / Lv) を追加で得る" },
-  { id: "eco_lucky",   category: "economy", name: "幸運コイン",        maxLevel: 5, perLevel: 0.05, desc: "敵が金コイン(×3)を落とす確率 (+5% / Lv)" },
+  // 武器固有強化 (各武器の子ノード)
+  { id: "bomb_radius", category: "weapon", name: "爆弾の範囲",     maxLevel: 5, desc: "爆発半径 +20% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 480 } },
+  { id: "bomb_damage", category: "weapon", name: "爆弾の威力",     maxLevel: 5, desc: "爆弾ダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 540 } },
+
+  { id: "thunder_chain",  category: "weapon", name: "サンダー連鎖", maxLevel: 5, desc: "連鎖数 +1 / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 600 } },
+  { id: "thunder_damage", category: "weapon", name: "サンダー威力", maxLevel: 5, desc: "サンダーダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 660 } },
+
+  { id: "homing_count",  category: "weapon", name: "ホーミング数",  maxLevel: 5, desc: "1 回の発射で +1 / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 720 } },
+  { id: "homing_damage", category: "weapon", name: "ホーミング威力", maxLevel: 5, desc: "ホーミングダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 780 } },
+
+  { id: "orbital_count", category: "weapon", name: "オービタル数",  maxLevel: 4, desc: "周回弾の個数 +1 / Lv (初期 2)",
+    requires: { id: "wpn_unlock_orbital", level: 1 }, pos: { x: 80, y: 780 } },
+  { id: "orbital_damage", category: "weapon", name: "オービタル威力", maxLevel: 5, desc: "オービタルダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_orbital", level: 1 }, pos: { x: 80, y: 840 } },
+
+  // ===== 防御系 (右上) =====
+  { id: "def_hp",     category: "defense", name: "最大HPアップ",     maxLevel: 5, desc: "最大HP +2 / Lv",
+    pos: { x: 640, y: 380 } },
+  { id: "def_regen",  category: "defense", name: "HP自然回復",       maxLevel: 5, desc: "HP +0.5 / 秒 / Lv",
+    requires: { id: "def_hp", level: 1 }, pos: { x: 760, y: 320 } },
+  { id: "def_speed",  category: "defense", name: "移動速度アップ",   maxLevel: 5, desc: "移動速度 +20% / Lv",
+    pos: { x: 640, y: 220 } },
+  { id: "def_armor",  category: "defense", name: "被ダメージ軽減",   maxLevel: 5, desc: "被ダメ -10% / Lv (最大 -50%)",
+    requires: { id: "def_hp", level: 2 }, pos: { x: 800, y: 420 } },
+  { id: "def_revive", category: "defense", name: "復活",             maxLevel: 1, desc: "HP0 で 1 回だけ自動復活",
+    costOverrides: [150], requires: { id: "def_armor", level: 2 },
+    pos: { x: 880, y: 320 } },
+
+  // ===== 経済系 (右下) =====
+  { id: "eco_coin",   category: "economy", name: "コイン獲得アップ", maxLevel: 5, desc: "敵から得られるコイン +20% / Lv",
+    pos: { x: 640, y: 540 } },
+  { id: "eco_magnet", category: "economy", name: "コイン磁力アップ", maxLevel: 5, desc: "コイン引き寄せ範囲 +30% / Lv",
+    requires: { id: "eco_coin", level: 1 }, pos: { x: 760, y: 600 } },
+  { id: "eco_start",  category: "economy", name: "開始時ボーナス",   maxLevel: 5, desc: "ラン開始時 +5 コイン / Lv",
+    requires: { id: "eco_coin", level: 1 }, pos: { x: 640, y: 660 } },
+  { id: "eco_retry",  category: "economy", name: "リトライボーナス", maxLevel: 5, desc: "死亡時、未獲得コインの 10% / Lv 追加",
+    requires: { id: "eco_coin", level: 2 }, pos: { x: 800, y: 720 } },
+  { id: "eco_lucky",  category: "economy", name: "幸運コイン",       maxLevel: 5, desc: "敵が金コイン (×3) を落とす確率 +5% / Lv",
+    requires: { id: "eco_magnet", level: 2 }, pos: { x: 880, y: 660 } },
 ];
 
 export const SKILL_BY_ID = Object.fromEntries(SKILLS.map((s) => [s.id, s]));
 
 export function nextCost(skill, currentLevel) {
   if (currentLevel >= skill.maxLevel) return null;
-  return COST_TABLE[currentLevel];
+  const table = skill.costOverrides || COST_TABLE;
+  return table[Math.min(currentLevel, table.length - 1)];
 }
 
 export function totalSpent(skill, level) {
+  const table = skill.costOverrides || COST_TABLE;
   let sum = 0;
-  for (let i = 0; i < level; i++) sum += COST_TABLE[i];
+  for (let i = 0; i < level && i < table.length; i++) sum += table[i];
   return sum;
+}
+
+// 解放可能か (前提条件を満たしているか)
+export function isUnlockable(skill, skillLevels) {
+  if (!skill.requires) return true;
+  const req = skill.requires;
+  return (skillLevels[req.id] || 0) >= req.level;
+}
+
+// 装備中の武器 ID 一覧。常に pistol が先頭。解放したものは全部装備される。
+export function equippedWeapons(skillLevels) {
+  const lv = (id) => skillLevels[id] || 0;
+  return [
+    "pistol",
+    lv("wpn_unlock_bomb")    >= 1 ? "bomb"    : null,
+    lv("wpn_unlock_thunder") >= 1 ? "thunder" : null,
+    lv("wpn_unlock_homing")  >= 1 ? "homing"  : null,
+    lv("wpn_unlock_orbital") >= 1 ? "orbital" : null,
+  ].filter(Boolean);
 }
 
 export function computeStats(skillLevels) {
@@ -60,5 +142,14 @@ export function computeStats(skillLevels) {
     startBonus:       lv("eco_start")   * 5,
     retryRate:        lv("eco_retry")   * 0.10,
     luckyChance:      lv("eco_lucky")   * 0.05,
+    weapons:          equippedWeapons(skillLevels),
+    bombRadiusMul:    1 + lv("bomb_radius")  * 0.20,
+    bombDamageMul:    1 + lv("bomb_damage")  * 0.25,
+    thunderChainAdd:  lv("thunder_chain"),
+    thunderDamageMul: 1 + lv("thunder_damage") * 0.25,
+    homingCountAdd:   lv("homing_count"),
+    homingDamageMul:  1 + lv("homing_damage")  * 0.25,
+    orbitalCountAdd:  lv("orbital_count"),
+    orbitalDamageMul: 1 + lv("orbital_damage") * 0.25,
   };
 }

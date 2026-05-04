@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import PhaserGame from "./PhaserGame";
 import SkillTreeScreen from "./SkillTreeScreen";
 import StageSelectScreen from "./StageSelectScreen";
-import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared } from "./api";
+import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills } from "./api";
 
 const SCREEN = {
   LOADING: "loading",
@@ -58,6 +58,20 @@ export default function App() {
   const handleGoStageSelect = () => setScreen(SCREEN.STAGE_SELECT);
   const handleBackToTree = () => setScreen(SCREEN.TREE);
 
+  const handleReset = async () => {
+    if (!confirm("全スキルをリセットして、支払ったコインを全額返却します。よろしいですか？")) return;
+    setBusy(true);
+    try {
+      const res = await resetSkills(userId);
+      setSkillLevels({});
+      setCoins(res.coins);
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleStartStage = (stageNumber) => {
     setSelectedStage(stageNumber);
     setLastResult(null);
@@ -91,6 +105,7 @@ export default function App() {
         skillLevels={skillLevels}
         stageNumber={selectedStage}
         onRunEnded={handleRunEnded}
+        onAbort={() => setScreen(SCREEN.TREE)}
       />
     );
   }
@@ -116,6 +131,7 @@ export default function App() {
           skillLevels={skillLevels}
           onUpgrade={handleUpgrade}
           onStart={handleGoStageSelect}
+          onReset={handleReset}
           busy={busy}
         />
       )}

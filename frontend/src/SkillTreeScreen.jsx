@@ -1,12 +1,21 @@
-import { useMemo } from "react";
-import { SKILLS, CATEGORIES, COST_TABLE, nextCost } from "./game/skills";
+import { useMemo, useState } from "react";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import {
+  SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, nextCost, isUnlockable,
+} from "./game/skills";
 
-export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, busy }) {
-  const grouped = useMemo(() => {
-    const out = { attack: [], defense: [], economy: [] };
-    for (const s of SKILLS) out[s.category].push(s);
-    return out;
+export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onReset, busy }) {
+  const [selectedId, setSelectedId] = useState(null);
+  const selected = selectedId ? SKILL_BY_ID[selectedId] : null;
+
+  const edges = useMemo(() => {
+    return SKILLS.filter((s) => s.requires).map((s) => {
+      const parent = SKILL_BY_ID[s.requires.id];
+      return { from: parent.pos, to: s.pos, parentId: parent.id, childId: s.id };
+    });
   }, []);
+
+  const nodeRadius = 22;
 
   return (
     <div style={styles.wrap}>
@@ -14,6 +23,16 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
         <h2 style={{ margin: 0 }}>スキルツリー</h2>
         <div style={styles.headerRight}>
           <span style={styles.coin}>COIN: <strong>{coins}</strong></span>
+          {onReset && (
+            <button
+              type="button"
+              onClick={onReset}
+              disabled={busy}
+              style={styles.resetButton}
+            >
+              ⟲ リセット
+            </button>
+          )}
           <button
             type="button"
             onClick={onStart}
@@ -25,80 +44,217 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
         </div>
       </header>
 
-      <div style={styles.columns}>
-        {Object.entries(grouped).map(([catId, skills]) => {
-          const cat = CATEGORIES[catId];
-          return (
-            <section key={catId} style={{ ...styles.column, borderTopColor: cat.color }}>
-              <h3 style={{ ...styles.colTitle, color: cat.color }}>{cat.label}</h3>
-              {skills.map((skill) => {
-                const lv = skillLevels[skill.id] || 0;
-                const cost = nextCost(skill, lv);
-                const maxed = cost === null;
-                const affordable = !maxed && coins >= cost;
-                return (
-                  <div key={skill.id} style={styles.skillCard}>
-                    <div style={styles.skillTopRow}>
-                      <strong>{skill.name}</strong>
-                      <span style={styles.level}>Lv. {lv} / {skill.maxLevel}</span>
-                    </div>
-                    <p style={styles.desc}>{skill.desc}</p>
-                    <div style={styles.bar}>
-                      {Array.from({ length: skill.maxLevel }).map((_, i) => (
-                        <div
-                          key={i}
-                          style={{ ...styles.barCell, background: i < lv ? cat.color : "#1e293b" }}
-                        />
-                      ))}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => onUpgrade(skill.id, cost)}
-                      disabled={maxed || !affordable || busy}
-                      style={{
-                        ...styles.upgradeButton,
-                        background: maxed ? "#475569" : affordable ? cat.color : "#334155",
-                        cursor: maxed || !affordable || busy ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {maxed ? "MAX" : `強化 (${cost} コイン)`}
-                    </button>
-                  </div>
-                );
-              })}
-            </section>
-          );
-        })}
+      <div style={styles.treeWrap}>
+        <TransformWrapper
+          initialScale={1}
+          minScale={0.5}
+          maxScale={4}
+          centerOnInit
+          doubleClick={{ mode: "reset" }}
+          wheel={{ step: 0.1 }}
+          panning={{ velocityDisabled: false }}
+          pinch={{ step: 5 }}
+        >
+        <TransformComponent
+          wrapperStyle={{ width: "100%", height: "100%" }}
+          contentStyle={{ width: "100%", height: "100%" }}
+        >
+        <svg
+          viewBox={`0 0 ${TREE_VIEWBOX.width} ${TREE_VIEWBOX.height}`}
+          style={styles.svg}
+          preserveAspectRatio="xMidYMid meet"
+        >
+          {/* 接続線 */}
+          {edges.map((e, i) => {
+            const childLv = skillLevels[e.childId] || 0;
+            const parentLv = skillLevels[e.parentId] || 0;
+            const reqLv = SKILL_BY_ID[e.childId].requires.level;
+            const reached = parentLv >= reqLv;
+            return (
+              <line
+                key={i}
+                x1={e.from.x}
+                y1={e.from.y}
+                x2={e.to.x}
+                y2={e.to.y}
+                stroke={reached ? "#64748b" : "#1e293b"}
+                strokeWidth={3}
+              />
+            );
+          })}
+
+          {/* ノード */}
+          {SKILLS.map((s) => {
+            const lv = skillLevels[s.id] || 0;
+            const cat = CATEGORIES[s.category];
+            const unlockable = isUnlockable(s, skillLevels);
+            const isMaxed = lv >= s.maxLevel;
+            const isOwned = lv > 0;
+            const fill = isOwned ? cat.color : unlockable ? "#0f172a" : "#1e293b";
+            const stroke = unlockable ? cat.color : "#475569";
+            const isSelected = selectedId === s.id;
+            return (
+              <g
+                key={s.id}
+                onClick={() => setSelectedId(s.id)}
+                style={{ cursor: "pointer" }}
+              >
+                <circle
+                  cx={s.pos.x}
+                  cy={s.pos.y}
+                  r={nodeRadius + (isSelected ? 4 : 0)}
+                  fill={fill}
+                  stroke={isSelected ? "#fde047" : stroke}
+                  strokeWidth={isSelected ? 4 : 2.5}
+                />
+                {isMaxed && (
+                  <circle
+                    cx={s.pos.x}
+                    cy={s.pos.y}
+                    r={nodeRadius - 6}
+                    fill="none"
+                    stroke="#fde047"
+                    strokeWidth={2}
+                  />
+                )}
+                {!unlockable && (
+                  <text
+                    x={s.pos.x}
+                    y={s.pos.y + 6}
+                    textAnchor="middle"
+                    fontSize={18}
+                    fill="#cbd5e1"
+                  >🔒</text>
+                )}
+                {unlockable && (
+                  <text
+                    x={s.pos.x}
+                    y={s.pos.y + 5}
+                    textAnchor="middle"
+                    fontSize={14}
+                    fill={isOwned ? "#0f172a" : "#cbd5e1"}
+                    fontWeight="bold"
+                  >{lv}/{s.maxLevel}</text>
+                )}
+                <text
+                  x={s.pos.x}
+                  y={s.pos.y + nodeRadius + 16}
+                  textAnchor="middle"
+                  fontSize={12}
+                  fill="#cbd5e1"
+                >{s.name}</text>
+              </g>
+            );
+          })}
+        </svg>
+        </TransformComponent>
+        </TransformWrapper>
       </div>
 
-      <p style={styles.footnote}>
-        コスト: {COST_TABLE.join(" → ")}（Lv1 → Lv{COST_TABLE.length}）
-      </p>
+      {/* 詳細パネル */}
+      {selected ? (
+        <SkillDetail
+          skill={selected}
+          lv={skillLevels[selected.id] || 0}
+          skillLevels={skillLevels}
+          coins={coins}
+          busy={busy}
+          onUpgrade={onUpgrade}
+          onClose={() => setSelectedId(null)}
+        />
+      ) : (
+        <p style={styles.hint}>ノードをタップして詳細を表示</p>
+      )}
+    </div>
+  );
+}
+
+function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }) {
+  const cat = CATEGORIES[skill.category];
+  const cost = nextCost(skill, lv);
+  const maxed = cost === null;
+  const unlockable = isUnlockable(skill, skillLevels);
+  const affordable = !maxed && unlockable && coins >= cost;
+  const reqText = skill.requires
+    ? `要: ${SKILL_BY_ID[skill.requires.id]?.name ?? skill.requires.id} Lv${skill.requires.level}`
+    : null;
+
+  return (
+    <div style={{ ...styles.detailWrap, borderColor: cat.color }}>
+      <div style={styles.detailHeader}>
+        <div>
+          <span style={{ ...styles.catTag, background: cat.color, color: "#0f172a" }}>{cat.label}</span>
+          <strong style={{ marginLeft: 8, fontSize: 16 }}>{skill.name}</strong>
+        </div>
+        <button onClick={onClose} style={styles.closeBtn}>×</button>
+      </div>
+      <p style={styles.detailDesc}>{skill.desc}</p>
+      <p style={styles.detailLine}>レベル: <strong>{lv} / {skill.maxLevel}</strong></p>
+      {reqText && (
+        <p style={{ ...styles.detailLine, color: unlockable ? "#86efac" : "#fda4af" }}>
+          {unlockable ? "✓ " : "🔒 "}{reqText}
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={() => onUpgrade(skill.id, cost)}
+        disabled={maxed || !affordable || busy}
+        style={{
+          ...styles.upgradeButton,
+          background: maxed ? "#475569" : affordable ? cat.color : "#334155",
+          cursor: maxed || !affordable || busy ? "not-allowed" : "pointer",
+        }}
+      >
+        {maxed ? "MAX" : !unlockable ? "🔒 LOCKED" : `強化 (${cost} コイン)`}
+      </button>
     </div>
   );
 }
 
 const styles = {
-  wrap: { padding: "16px 16px", color: "#e2e8f0" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16, flexWrap: "wrap", gap: 12 },
+  wrap: { padding: "12px 12px 200px", color: "#e2e8f0" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 12 },
   headerRight: { display: "flex", alignItems: "center", gap: 16 },
   coin: { fontSize: 18, color: "#fde047" },
   startButton: {
     background: "#22c55e", color: "#0f172a", border: "none", padding: "10px 22px",
     fontSize: 16, fontWeight: 700, borderRadius: 6, cursor: "pointer",
   },
-  columns: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16 },
-  column: { background: "#0f172a", border: "1px solid #1e293b", borderTopWidth: 4, borderRadius: 6, padding: 12 },
-  colTitle: { margin: "0 0 12px", fontSize: 18 },
-  skillCard: { background: "#1e293b", borderRadius: 6, padding: 10, marginBottom: 10 },
-  skillTopRow: { display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 4 },
-  level: { fontSize: 12, color: "#94a3b8" },
-  desc: { fontSize: 13, color: "#cbd5e1", margin: "4px 0 8px" },
-  bar: { display: "flex", gap: 3, marginBottom: 8 },
-  barCell: { flex: 1, height: 6, borderRadius: 2 },
-  upgradeButton: {
-    width: "100%", border: "none", padding: "6px 10px", borderRadius: 4,
-    color: "#0f172a", fontWeight: 700, fontSize: 13,
+  resetButton: {
+    background: "#475569", color: "#e2e8f0", border: "none", padding: "8px 14px",
+    fontSize: 13, borderRadius: 6, cursor: "pointer",
   },
-  footnote: { textAlign: "center", color: "#64748b", fontSize: 12, marginTop: 12 },
+  treeWrap: {
+    width: "100%",
+    background: "radial-gradient(ellipse at center, #1e293b 0%, #0b1220 70%)",
+    borderRadius: 8,
+    border: "1px solid #1e293b",
+    overflow: "hidden",
+    aspectRatio: `${1000 / 900}`,
+    maxHeight: "70vh",
+  },
+  svg: { width: "100%", height: "100%", display: "block" },
+  hint: { textAlign: "center", color: "#64748b", fontSize: 13, marginTop: 12 },
+  detailWrap: {
+    position: "fixed",
+    left: 12,
+    right: 12,
+    bottom: "calc(env(safe-area-inset-bottom) + 12px)",
+    maxWidth: 520,
+    margin: "0 auto",
+    background: "#1e293b",
+    border: "2px solid",
+    borderRadius: 8,
+    padding: "12px 14px",
+    zIndex: 10,
+  },
+  detailHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
+  catTag: { padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700 },
+  closeBtn: { background: "transparent", color: "#cbd5e1", border: "none", fontSize: 22, cursor: "pointer", lineHeight: 1 },
+  detailDesc: { fontSize: 13, color: "#cbd5e1", margin: "4px 0 8px" },
+  detailLine: { fontSize: 13, margin: "4px 0" },
+  upgradeButton: {
+    width: "100%", border: "none", padding: "10px", borderRadius: 6,
+    color: "#0f172a", fontWeight: 700, fontSize: 14, marginTop: 8,
+  },
 };
