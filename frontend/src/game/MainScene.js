@@ -218,8 +218,8 @@ export default class MainScene extends Phaser.Scene {
         } else if (p === "chase_burst") {
           enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
           if (this.time.now >= enemy.nextBurstAt) {
-            enemy.nextBurstAt = this.time.now + 3000;
-            this.fireRing(enemy, 12, 200);
+            enemy.nextBurstAt = this.time.now + 2200;
+            this.fireRing(enemy, 14, 230);
           }
         } else {
           enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
@@ -361,16 +361,17 @@ export default class MainScene extends Phaser.Scene {
     this.cameras.main.flash(400, 200, 50, 50);
     this.cameras.main.shake(300, 0.01);
 
+    const fontPx = Math.min(64, Math.floor(this.worldWidth / 6));
     const banner = this.add.text(this.worldWidth / 2, this.worldHeight / 2, "BOSS!", {
       fontFamily: "system-ui, sans-serif",
-      fontSize: "64px",
+      fontSize: `${fontPx}px`,
       color: "#ef4444",
       fontStyle: "bold",
     }).setOrigin(0.5).setDepth(3000);
     this.tweens.add({
       targets: banner,
       alpha: { from: 1, to: 0 },
-      scale: { from: 1, to: 1.6 },
+      scale: { from: 1, to: 1.4 },
       duration: 1200,
       onComplete: () => banner.destroy(),
     });
@@ -530,16 +531,16 @@ export default class MainScene extends Phaser.Scene {
       });
     }
 
+    const fontPx = Math.min(56, Math.floor(this.worldWidth / 8));
     const banner = this.add.text(this.worldWidth / 2, this.worldHeight / 2, "STAGE CLEAR!", {
       fontFamily: "system-ui, sans-serif",
-      fontSize: "56px",
+      fontSize: `${fontPx}px`,
       color: "#fde047",
       fontStyle: "bold",
     }).setOrigin(0.5).setDepth(3000);
     this.tweens.add({
       targets: banner,
-      alpha: { from: 1, to: 1 },
-      scale: { from: 0.5, to: 1.2 },
+      scale: { from: 0.5, to: 1.0 },
       duration: 600,
     });
 

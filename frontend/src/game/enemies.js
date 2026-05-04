@@ -13,7 +13,7 @@ export const ENEMY_TYPES = {
     color: 0x60a5fa,
     size: 18,
     hp: 1,
-    speed: 170,
+    speed: 130,
     contactDamage: 1,
     coinDrop: 1,
     canShoot: false,
