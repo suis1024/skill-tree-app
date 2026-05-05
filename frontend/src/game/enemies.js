@@ -1,4 +1,6 @@
 // 敵タイプ定義。MainScene からテーブル参照される。
+// coinDrop は「敵 1 体撃破あたりの雑魚コイン数」。
+// 後で stats.coinMul (eco_coin) と Math.round で倍掛けされる。
 export const ENEMY_TYPES = {
   grunt: {
     color: 0xef4444,
@@ -24,7 +26,7 @@ export const ENEMY_TYPES = {
     hp: 15,
     speed: 55,
     contactDamage: 2,
-    coinDrop: 4,
+    coinDrop: 2,
     canShoot: false,
   },
   shooter: {
@@ -33,11 +35,11 @@ export const ENEMY_TYPES = {
     hp: 5,
     speed: 70,
     contactDamage: 1,
-    coinDrop: 2,
+    coinDrop: 1,
     canShoot: true,
     shootIntervalMs: 1800,
     shotSpeed: 220,
-    preferredDistance: 240, // この距離で止まる
+    preferredDistance: 240,
   },
 };
 
@@ -62,11 +64,9 @@ export function spawnIntervalMs(elapsedSec) {
 // 1 回のスポーンで何体出すか。後半・後ステージほど多い。
 export function spawnBatchSize(elapsedSec, stageNumber = 1) {
   let n = 1;
-  if (elapsedSec >= 50) n += 1;
-  if (elapsedSec >= 80) n += 1;
-  if (stageNumber >= 5) n += 1;
-  if (stageNumber >= 8) n += 1;
-  return Math.min(6, n);
+  if (elapsedSec >= 60) n += 1;
+  if (stageNumber >= 6) n += 1;
+  return Math.min(4, n);
 }
 
 // 出現タイプの重み付き選択 (経過秒+ステージ番号で強い敵の出現率も上がる)。

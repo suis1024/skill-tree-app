@@ -4,6 +4,7 @@ import { ENEMY_TYPES, pickEnemyType, spawnIntervalMs, spawnBatchSize } from "./e
 import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
 import { bossForStage } from "./bosses";
 import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
+import { spawnDeathBurst, popDamageText } from "./effects";
 
 const PLAYER_BASE_SPEED = 220;
 const COIN_BASE_PICKUP_RADIUS = 60;
@@ -43,6 +44,7 @@ export default class MainScene extends Phaser.Scene {
     this.elapsedMs = 0;
     this.lastSpawnTuneMs = 0;
     this.regenAccum = 0;
+    this.lastDamagedAt = 0;
     this.gameOverActive = false;
     this.invincibleUntil = 0;
     this.reviveAvailable = this.stats.hasRevive;
@@ -167,7 +169,11 @@ export default class MainScene extends Phaser.Scene {
 
     this.elapsedMs += delta;
 
-    if (this.stats.regenPerSec > 0 && this.hp < this.maxHp) {
+    if (
+      this.stats.regenPerSec > 0 &&
+      this.hp < this.maxHp &&
+      this.time.now - this.lastDamagedAt > 3000
+    ) {
       this.regenAccum += this.stats.regenPerSec * (delta / 1000);
       if (this.regenAccum >= 1) {
         const heal = Math.floor(this.regenAccum);
@@ -228,11 +234,11 @@ export default class MainScene extends Phaser.Scene {
             this.fireRing(enemy, 14, 230);
           }
         } else {
-          // chase デフォルト: 追跡しつつ 2.5 秒に 1 回リング弾
+          // chase デフォルト: 追跡しつつ 1.8 秒に 1 回リング弾
           enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
           if (this.time.now >= enemy.nextBurstAt) {
-            enemy.nextBurstAt = this.time.now + 2500;
-            this.fireRing(enemy, 8, 200);
+            enemy.nextBurstAt = this.time.now + 1800;
+            this.fireRing(enemy, 10, 220);
           }
         }
       } else if (enemy.canShoot && enemy.preferredDistance) {
@@ -260,7 +266,7 @@ export default class MainScene extends Phaser.Scene {
       if (this.elapsedMs - this.lastSpawnTuneMs > 2000) {
         this.lastSpawnTuneMs = this.elapsedMs;
         const baseInterval = spawnIntervalMs(this.elapsedMs / 1000);
-        const next = Math.max(80, Math.round(baseInterval / this.difficultyMul));
+        const next = Math.max(150, Math.round(baseInterval / this.difficultyMul));
         if (next !== this.currentSpawnInterval) {
           this.currentSpawnInterval = next;
           this.spawnTimer.delay = next;
@@ -276,7 +282,10 @@ export default class MainScene extends Phaser.Scene {
       }
     }
 
+    // コイン磁力: 範囲に入ったら、プレイヤー速度を上回る速度で追従させる
     const magnetRadius = COIN_BASE_PICKUP_RADIUS * this.stats.magnetMul;
+    const playerSpeed = PLAYER_BASE_SPEED * this.stats.speedMul;
+    const magnetSpeed = Math.max(COIN_MAGNET_SPEED, playerSpeed * 1.6);
     this.coinSprites.children.iterate((coin) => {
       if (!coin || !coin.body) return;
       const dx = this.player.x - coin.x;
@@ -284,7 +293,7 @@ export default class MainScene extends Phaser.Scene {
       const dist = Math.hypot(dx, dy);
       if (dist < magnetRadius) {
         const len = dist || 1;
-        coin.body.setVelocity((dx / len) * COIN_MAGNET_SPEED, (dy / len) * COIN_MAGNET_SPEED);
+        coin.body.setVelocity((dx / len) * magnetSpeed, (dy / len) * magnetSpeed);
       } else {
         coin.body.setVelocity(0, 0);
       }
@@ -496,15 +505,14 @@ export default class MainScene extends Phaser.Scene {
 
   onBulletHit(bullet, enemy) {
     if (bullet.isOrbital) {
-      // オービタルは連打を防ぐため敵側に短いクールダウン
       const now = this.time.now;
       enemy._orbitalImmuneUntil = enemy._orbitalImmuneUntil || 0;
       if (now < enemy._orbitalImmuneUntil) return;
       enemy._orbitalImmuneUntil = now + 250;
-      this.damageEnemy(enemy, bullet.damage);
+      this.damageEnemy(enemy, bullet.damage, !!bullet.isCrit);
       return;
     }
-    this.damageEnemy(enemy, bullet.damage);
+    this.damageEnemy(enemy, bullet.damage, !!bullet.isCrit);
     if (bullet.pierceLeft > 0) {
       bullet.pierceLeft -= 1;
     } else {
@@ -512,9 +520,10 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  damageEnemy(enemy, dmg) {
+  damageEnemy(enemy, dmg, isCrit = false) {
     if (!enemy || !enemy.active) return;
     enemy.hp -= dmg;
+    popDamageText(this, enemy.x, enemy.y - (enemy.displayHeight || 24) / 2, dmg, isCrit);
     if (enemy.hp <= 0) {
       this.killEnemy(enemy);
       return;
@@ -559,9 +568,12 @@ export default class MainScene extends Phaser.Scene {
     const y = enemy.y;
     const dropCount = enemy.coinDrop || 1;
     const wasBoss = enemy.isBoss;
+    const burstColor = enemy.fillColor ?? 0xffffff;
+    const burstScale = wasBoss ? 2.2 : 1;
     if (enemy.hpBar) enemy.hpBar.destroy();
     if (enemy.hpBarBg) enemy.hpBarBg.destroy();
     enemy.destroy();
+    spawnDeathBurst(this, x, y, burstColor, burstScale);
     for (let i = 0; i < dropCount; i++) {
       const isLucky = Math.random() < this.stats.luckyChance;
       const ox = dropCount === 1 ? 0 : Phaser.Math.Between(-12, 12);
@@ -638,6 +650,8 @@ export default class MainScene extends Phaser.Scene {
   applyDamage(rawDamage) {
     const dmg = Math.max(0.1, rawDamage * (1 - this.stats.damageReduction));
     this.hp -= dmg;
+    this.lastDamagedAt = this.time.now;
+    this.regenAccum = 0;
     this.invincibleUntil = this.time.now + 800;
     this.player.setAlpha(0.4);
     this.cameras.main.shake(120, 0.008);

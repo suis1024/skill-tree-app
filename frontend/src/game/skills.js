@@ -67,7 +67,7 @@ export const SKILLS = [
   // ===== 防御系 (右上) =====
   { id: "def_hp",     category: "defense", name: "最大HPアップ",     maxLevel: 5, desc: "最大HP +2 / Lv",
     pos: { x: 640, y: 380 } },
-  { id: "def_regen",  category: "defense", name: "HP自然回復",       maxLevel: 5, desc: "HP +0.5 / 秒 / Lv",
+  { id: "def_regen",  category: "defense", name: "HP自然回復",       maxLevel: 5, desc: "HP +0.2 / 秒 / Lv (被弾後 3 秒は無効)",
     requires: { id: "def_hp", level: 1 }, pos: { x: 760, y: 320 } },
   { id: "def_speed",  category: "defense", name: "移動速度アップ",   maxLevel: 5, desc: "移動速度 +20% / Lv",
     pos: { x: 640, y: 220 } },
@@ -78,7 +78,7 @@ export const SKILLS = [
     pos: { x: 880, y: 320 } },
 
   // ===== 経済系 (右下) =====
-  { id: "eco_coin",   category: "economy", name: "コイン獲得アップ", maxLevel: 5, desc: "敵から得られるコイン +20% / Lv",
+  { id: "eco_coin",   category: "economy", name: "コイン獲得アップ", maxLevel: 5, desc: "敵から得られるコイン +15% / Lv",
     pos: { x: 640, y: 540 } },
   { id: "eco_magnet", category: "economy", name: "コイン磁力アップ", maxLevel: 5, desc: "コイン引き寄せ範囲 +30% / Lv",
     requires: { id: "eco_coin", level: 1 }, pos: { x: 760, y: 600 } },
@@ -133,11 +133,11 @@ export function computeStats(skillLevels) {
     pierce:           lv("atk_pierce"),
     bulletCount:      1 + lv("atk_multi"),
     maxHp:            5 + lv("def_hp")    * 2,
-    regenPerSec:      lv("def_regen") * 0.5,
+    regenPerSec:      lv("def_regen") * 0.2,
     speedMul:         1 + lv("def_speed") * 0.20,
     damageReduction:  Math.min(0.5, lv("def_armor") * 0.10),
     hasRevive:        lv("def_revive") >= 1,
-    coinMul:          1 + lv("eco_coin")  * 0.20,
+    coinMul:          1 + lv("eco_coin")  * 0.15,
     magnetMul:        1 + lv("eco_magnet") * 0.30,
     startBonus:       lv("eco_start")   * 5,
     retryRate:        lv("eco_retry")   * 0.10,

@@ -7,6 +7,7 @@
 //   scene.stats (computeStats の結果) を持つこと。
 
 import Phaser from "phaser";
+import { spawnExplosion } from "./effects";
 
 const BULLET_LIFETIME_MS = 2000;
 const BOMB_LIFETIME_MS = 3000;
@@ -44,6 +45,7 @@ function firePistol(scene) {
     scene.bullets.add(bullet);
     bullet.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
     bullet.damage = damage;
+    bullet.isCrit = isCrit;
     bullet.pierceLeft = stats.pierce;
     scene.time.delayedCall(BULLET_LIFETIME_MS, () => bullet.destroy());
   }
@@ -78,16 +80,8 @@ function fireBomb(scene) {
       t.y = startY + (ty - startY) * p + arc;
     },
     onComplete: () => {
-      const explosion = scene.add.circle(tx, ty, radius, 0xfca5a5, 0.45).setDepth(60);
-      scene.tweens.add({
-        targets: explosion,
-        alpha: { from: 0.6, to: 0 },
-        scale: { from: 0.6, to: 1.1 },
-        duration: 350,
-        onComplete: () => explosion.destroy(),
-      });
+      spawnExplosion(scene, tx, ty, radius);
       bomb.destroy();
-      // 範囲内の敵にダメージ
       scene.enemies.children.iterate((e) => {
         if (!e || !e.active) return;
         const d = Phaser.Math.Distance.Between(tx, ty, e.x, e.y);
@@ -132,25 +126,51 @@ function fireThunder(scene) {
 }
 
 function drawLightning(scene, x1, y1, x2, y2) {
-  const g = scene.add.graphics().setDepth(70);
-  g.lineStyle(3, 0x60a5fa, 1);
-  // ジグザグ線
-  const segments = 6;
-  g.beginPath();
-  g.moveTo(x1, y1);
+  // ジグザグの折れ点を一度生成して、太い→細い→白芯の 3 重ストロークで重ね描き。
+  const segments = 8;
+  const points = [{ x: x1, y: y1 }];
   for (let i = 1; i < segments; i++) {
     const t = i / segments;
-    const lx = x1 + (x2 - x1) * t + Phaser.Math.Between(-10, 10);
-    const ly = y1 + (y2 - y1) * t + Phaser.Math.Between(-10, 10);
-    g.lineTo(lx, ly);
+    const lx = x1 + (x2 - x1) * t + Phaser.Math.Between(-16, 16);
+    const ly = y1 + (y2 - y1) * t + Phaser.Math.Between(-16, 16);
+    points.push({ x: lx, y: ly });
   }
-  g.lineTo(x2, y2);
-  g.strokePath();
+  points.push({ x: x2, y: y2 });
+
+  const drawPath = (g, width, color, alpha) => {
+    g.lineStyle(width, color, alpha);
+    g.beginPath();
+    g.moveTo(points[0].x, points[0].y);
+    for (let i = 1; i < points.length; i++) g.lineTo(points[i].x, points[i].y);
+    g.strokePath();
+  };
+
+  const glow = scene.add.graphics().setDepth(70);
+  drawPath(glow, 10, 0x3b82f6, 0.35);
+  const mid = scene.add.graphics().setDepth(71);
+  drawPath(mid, 5, 0x60a5fa, 0.85);
+  const core = scene.add.graphics().setDepth(72);
+  drawPath(core, 2, 0xffffff, 1);
+
+  // 着弾点に小さなスパーク
+  const spark = scene.add.circle(x2, y2, 12, 0xbfdbfe, 0.9).setDepth(73);
   scene.tweens.add({
-    targets: g,
-    alpha: { from: 1, to: 0 },
+    targets: spark,
+    scale: { from: 0.6, to: 1.6 },
+    alpha: { from: 0.9, to: 0 },
     duration: 220,
-    onComplete: () => g.destroy(),
+    onComplete: () => spark.destroy(),
+  });
+
+  scene.tweens.add({
+    targets: [glow, mid, core],
+    alpha: { from: 1, to: 0 },
+    duration: 260,
+    onComplete: () => {
+      glow.destroy();
+      mid.destroy();
+      core.destroy();
+    },
   });
 }
 
