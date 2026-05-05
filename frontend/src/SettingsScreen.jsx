@@ -45,6 +45,15 @@ export default function SettingsScreen({
         />
       </Section>
 
+      <Section title="フィードバック">
+        <Toggle
+          label="バイブレーション"
+          description="被弾や撃破などで端末を振動させる (iOS のみ)"
+          checked={settings.haptics}
+          onChange={(v) => onChangeSettings({ ...settings, haptics: v })}
+        />
+      </Section>
+
       <Section title="進捗管理">
         <button type="button" onClick={handleResetSkills} disabled={disabled} style={styles.warnButton}>
           ⟲ スキルをリセット (コイン全額返却)

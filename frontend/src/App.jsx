@@ -6,6 +6,7 @@ import TitleScreen from "./TitleScreen";
 import SettingsScreen from "./SettingsScreen";
 import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress } from "./api";
 import { readSettings, writeSettings } from "./settings";
+import { setHapticsEnabled } from "./haptics";
 
 const SCREEN = {
   LOADING: "loading",
@@ -28,11 +29,16 @@ export default function App() {
   const [selectedStage, setSelectedStage] = useState(1);
   const [lastResult, setLastResult] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [settings, setSettings] = useState(() => readSettings());
+  const [settings, setSettings] = useState(() => {
+    const s = readSettings();
+    setHapticsEnabled(s.haptics);
+    return s;
+  });
 
   const handleChangeSettings = (next) => {
     setSettings(next);
     writeSettings(next);
+    setHapticsEnabled(next.haptics);
   };
 
   const handleWipeProgress = async () => {

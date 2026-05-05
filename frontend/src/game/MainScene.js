@@ -5,6 +5,7 @@ import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
 import { bossForStage } from "./bosses";
 import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
 import { spawnDeathBurst, popDamageText, popCoinText } from "./effects";
+import { hapticLight, hapticMedium, hapticHeavy } from "../haptics";
 
 const PLAYER_BASE_SPEED = 220;
 const COIN_BASE_PICKUP_RADIUS = 60;
@@ -614,7 +615,10 @@ export default class MainScene extends Phaser.Scene {
     if (wasBoss) {
       this.boss = null;
       this.hitStop(150);
+      hapticHeavy();
       this.onBossDefeated(x, y);
+    } else {
+      hapticLight();
     }
   }
 
@@ -675,6 +679,7 @@ export default class MainScene extends Phaser.Scene {
     coin.destroy();
     this.coins += gained;
     popCoinText(this, x, y, gained);
+    hapticLight();
   }
 
   hitPlayer(enemy, rawDamage) {
@@ -691,6 +696,7 @@ export default class MainScene extends Phaser.Scene {
     this.invincibleUntil = this.time.now + 800;
     this.player.setAlpha(0.4);
     this.shake(120, 0.008);
+    hapticMedium();
     if (this.hp <= 0) {
       if (this.reviveAvailable) {
         this.reviveAvailable = false;

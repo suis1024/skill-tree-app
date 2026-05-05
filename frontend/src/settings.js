@@ -4,6 +4,7 @@ const KEY = "skill-tree-shooter:settings";
 
 const DEFAULTS = {
   screenShake: true,
+  haptics: true,
 };
 
 export function readSettings() {
