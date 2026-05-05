@@ -11,7 +11,7 @@ export default function TitleScreen({ onStart }) {
         <h1 style={styles.title}>Skill Tree Shooter</h1>
         <p style={styles.subtitle}>全方位シューティング × ローグライト</p>
         <button style={styles.button} onClick={onStart}>開始</button>
-        <button style={styles.helpButton} onClick={() => setShowHelp(true)}>あそびかた</button>
+        <button style={styles.subButton} onClick={() => setShowHelp(true)}>あそびかた</button>
       </div>
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
     </div>
@@ -79,7 +79,7 @@ const styles = {
     padding: "14px 40px", borderRadius: 8, fontSize: 17, fontWeight: 700,
     cursor: "pointer", boxShadow: "0 4px 0 #15803d",
   },
-  helpButton: {
+  subButton: {
     display: "block", margin: "20px auto 0",
     background: "transparent", color: "#94a3b8", border: "1px solid #475569",
     padding: "8px 18px", borderRadius: 6, fontSize: 13, cursor: "pointer",

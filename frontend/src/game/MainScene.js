@@ -33,6 +33,7 @@ export default class MainScene extends Phaser.Scene {
 
     const skillLevels = this.registry.get("skillLevels") || {};
     this.stats = computeStats(skillLevels);
+    this.settings = this.registry.get("settings") || { screenShake: true };
 
     this.stageNumber = this.registry.get("stageNumber") || 1;
     this.difficultyMul = difficultyMul(this.stageNumber);
@@ -376,7 +377,7 @@ export default class MainScene extends Phaser.Scene {
     });
     this.enemyBullets.children.iterate((e) => e && e.destroy());
     this.cameras.main.flash(400, 200, 50, 50);
-    this.cameras.main.shake(300, 0.01);
+    this.shake(300, 0.01);
 
     const fontPx = Math.min(64, Math.floor(this.worldWidth / 6));
     const banner = this.add.text(this.worldWidth / 2, this.worldHeight / 2, "BOSS!", {
@@ -546,6 +547,12 @@ export default class MainScene extends Phaser.Scene {
     if (isCrit) this.hitStop(40);
   }
 
+  // 設定で OFF にされていたらシェイクをスキップ。
+  shake(duration, intensity) {
+    if (this.settings && this.settings.screenShake === false) return;
+    this.cameras.main.shake(duration, intensity);
+  }
+
   // 物理だけを短時間止めて手応えを出す。tween/演出は通常通り進む。
   hitStop(ms) {
     if (this.gameOverActive) return;
@@ -615,7 +622,7 @@ export default class MainScene extends Phaser.Scene {
     if (this.phase !== "boss") return;
     this.phase = "clearing";
     this.cameras.main.flash(500, 250, 220, 100);
-    this.cameras.main.shake(400, 0.015);
+    this.shake(400, 0.015);
 
     // 視覚演出のみ (実数値ボーナスは endRun 内で別途加算)。
     const sparkles = 12;
@@ -683,7 +690,7 @@ export default class MainScene extends Phaser.Scene {
     this.regenAccum = 0;
     this.invincibleUntil = this.time.now + 800;
     this.player.setAlpha(0.4);
-    this.cameras.main.shake(120, 0.008);
+    this.shake(120, 0.008);
     if (this.hp <= 0) {
       if (this.reviveAvailable) {
         this.reviveAvailable = false;

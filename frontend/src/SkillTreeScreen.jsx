@@ -4,7 +4,7 @@ import {
   SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, nextCost, isUnlockable,
 } from "./game/skills";
 
-export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onReset, onBackToTitle, busy }) {
+export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onBackToTitle, onOpenSettings, busy }) {
   const [selectedId, setSelectedId] = useState(null);
   const selected = selectedId ? SKILL_BY_ID[selectedId] : null;
 
@@ -25,19 +25,12 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
             <button type="button" onClick={onBackToTitle} style={styles.backButton}>← タイトル</button>
           )}
           <h2 style={{ margin: 0 }}>スキルツリー</h2>
+          {onOpenSettings && (
+            <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.iconButton}>⚙</button>
+          )}
         </div>
         <div style={styles.headerRight}>
           <span style={styles.coin}>COIN: <strong>{coins}</strong></span>
-          {onReset && (
-            <button
-              type="button"
-              onClick={onReset}
-              disabled={busy}
-              style={styles.resetButton}
-            >
-              ⟲ リセット
-            </button>
-          )}
           <button
             type="button"
             onClick={onStart}
@@ -225,14 +218,15 @@ const styles = {
     background: "#334155", color: "#e2e8f0", border: "none",
     padding: "8px 14px", borderRadius: 6, fontSize: 13, cursor: "pointer",
   },
+  iconButton: {
+    background: "#334155", color: "#e2e8f0", border: "none",
+    width: 36, height: 36, borderRadius: 18, fontSize: 18, cursor: "pointer",
+    display: "flex", alignItems: "center", justifyContent: "center",
+  },
   coin: { fontSize: 18, color: "#fde047" },
   startButton: {
     background: "#22c55e", color: "#0f172a", border: "none", padding: "10px 22px",
     fontSize: 16, fontWeight: 700, borderRadius: 6, cursor: "pointer",
-  },
-  resetButton: {
-    background: "#475569", color: "#e2e8f0", border: "none", padding: "8px 14px",
-    fontSize: 13, borderRadius: 6, cursor: "pointer",
   },
   treeWrap: {
     width: "100%",

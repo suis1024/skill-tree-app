@@ -69,7 +69,7 @@ export function spawnExplosion(scene, x, y, radius) {
       onComplete: () => s.destroy(),
     });
   }
-  scene.cameras.main.shake(120, 0.006);
+  if (scene.shake) scene.shake(120, 0.006); else scene.cameras.main.shake(120, 0.006);
 }
 
 // コイン拾得ポップ。プレイヤー上に小さく "+N" を浮かす。

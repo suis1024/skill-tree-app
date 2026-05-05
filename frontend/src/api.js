@@ -103,6 +103,15 @@ export async function addCoins(userId, coins) {
   return { user_id: userId, coins: next };
 }
 
+// 進捗を全部消す。設定は維持。再起動相当の初期状態に戻す。
+export async function wipeProgress() {
+  localStorage.removeItem(COINS_KEY);
+  localStorage.removeItem(SKILLS_KEY);
+  localStorage.removeItem(STAGES_KEY);
+  // user_id と settings は意図的に残す
+  return { coins: 0, skill_levels: {}, cleared_stages: [] };
+}
+
 export async function upgradeSkill(userId, skillId, cost) {
   if (!Number.isFinite(cost) || cost < 0) {
     throw new Error("cost must be a non-negative number");

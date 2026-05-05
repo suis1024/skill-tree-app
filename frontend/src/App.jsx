@@ -3,7 +3,9 @@ import PhaserGame from "./PhaserGame";
 import SkillTreeScreen from "./SkillTreeScreen";
 import StageSelectScreen from "./StageSelectScreen";
 import TitleScreen from "./TitleScreen";
-import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills } from "./api";
+import SettingsScreen from "./SettingsScreen";
+import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress } from "./api";
+import { readSettings, writeSettings } from "./settings";
 
 const SCREEN = {
   LOADING: "loading",
@@ -12,6 +14,7 @@ const SCREEN = {
   STAGE_SELECT: "stageSelect",
   GAME: "game",
   RESULT: "result",
+  SETTINGS: "settings",
   ERROR: "error",
 };
 
@@ -25,6 +28,24 @@ export default function App() {
   const [selectedStage, setSelectedStage] = useState(1);
   const [lastResult, setLastResult] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [settings, setSettings] = useState(() => readSettings());
+
+  const handleChangeSettings = (next) => {
+    setSettings(next);
+    writeSettings(next);
+  };
+
+  const handleWipeProgress = async () => {
+    setBusy(true);
+    try {
+      const res = await wipeProgress();
+      setCoins(res.coins);
+      setSkillLevels(res.skill_levels);
+      setClearedStages(res.cleared_stages);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +137,20 @@ export default function App() {
     return <TitleScreen onStart={() => setScreen(SCREEN.TREE)} />;
   }
 
+  if (screen === SCREEN.SETTINGS) {
+    return (
+      <SettingsScreen
+        settings={settings}
+        onChangeSettings={handleChangeSettings}
+        onResetSkills={handleReset}
+        onWipeProgress={handleWipeProgress}
+        onBack={() => setScreen(SCREEN.TREE)}
+        backLabel="← スキルツリー"
+        busy={busy}
+      />
+    );
+  }
+
   return (
     <div style={styles.app}>
       <header style={styles.header}>
@@ -137,8 +172,8 @@ export default function App() {
           skillLevels={skillLevels}
           onUpgrade={handleUpgrade}
           onStart={handleGoStageSelect}
-          onReset={handleReset}
           onBackToTitle={() => setScreen(SCREEN.TITLE)}
+          onOpenSettings={() => setScreen(SCREEN.SETTINGS)}
           busy={busy}
         />
       )}
