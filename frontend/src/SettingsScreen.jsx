@@ -54,6 +54,31 @@ export default function SettingsScreen({
         />
       </Section>
 
+      <Section title="サウンド">
+        <Toggle
+          label="BGM"
+          checked={settings.bgmEnabled}
+          onChange={(v) => onChangeSettings({ ...settings, bgmEnabled: v })}
+        />
+        <Slider
+          label="BGM 音量"
+          value={settings.bgmVolume}
+          disabled={!settings.bgmEnabled}
+          onChange={(v) => onChangeSettings({ ...settings, bgmVolume: v })}
+        />
+        <Toggle
+          label="効果音"
+          checked={settings.seEnabled}
+          onChange={(v) => onChangeSettings({ ...settings, seEnabled: v })}
+        />
+        <Slider
+          label="効果音 音量"
+          value={settings.seVolume}
+          disabled={!settings.seEnabled}
+          onChange={(v) => onChangeSettings({ ...settings, seVolume: v })}
+        />
+      </Section>
+
       <Section title="進捗管理">
         <button type="button" onClick={handleResetSkills} disabled={disabled} style={styles.warnButton}>
           ⟲ スキルをリセット (コイン全額返却)
@@ -78,6 +103,27 @@ function Section({ title, children }) {
       <h3 style={styles.sectionTitle}>{title}</h3>
       <div>{children}</div>
     </section>
+  );
+}
+
+function Slider({ label, value, onChange, disabled }) {
+  const pct = Math.round((value ?? 0) * 100);
+  return (
+    <div style={{ ...styles.toggleRow, opacity: disabled ? 0.4 : 1 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 14, color: "#cbd5e1" }}>{label}</div>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={pct}
+        disabled={disabled}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+        style={{ width: 140, accentColor: "#22c55e" }}
+      />
+      <div style={{ width: 32, textAlign: "right", fontSize: 12, color: "#94a3b8" }}>{pct}</div>
+    </div>
   );
 }
 

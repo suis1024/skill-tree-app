@@ -6,6 +6,7 @@ import { bossForStage } from "./bosses";
 import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
 import { spawnDeathBurst, popDamageText, popCoinText } from "./effects";
 import { hapticLight, hapticMedium, hapticHeavy } from "../haptics";
+import { AUDIO_KEYS, preloadAllAudio, playSe } from "./audio";
 
 const PLAYER_BASE_SPEED = 220;
 const COIN_BASE_PICKUP_RADIUS = 60;
@@ -17,8 +18,13 @@ export default class MainScene extends Phaser.Scene {
     super("MainScene");
   }
 
+  preload() {
+    preloadAllAudio(this);
+  }
+
   create() {
     this.cameras.main.setBackgroundColor("#0f172a");
+    this.audio = { settings: this.registry.get("settings") || {} };
 
     this.worldWidth = this.scale.width;
     this.worldHeight = this.scale.height;
@@ -215,6 +221,7 @@ export default class MainScene extends Phaser.Scene {
 
     this.enemies.children.iterate((enemy) => {
       if (!enemy || !enemy.body) return;
+      if (enemy.isSpawning) return;
       const dx = this.player.x - enemy.x;
       const dy = this.player.y - enemy.y;
       const dist = Math.hypot(dx, dy) || 1;
@@ -379,6 +386,7 @@ export default class MainScene extends Phaser.Scene {
     this.enemyBullets.children.iterate((e) => e && e.destroy());
     this.cameras.main.flash(400, 200, 50, 50);
     this.shake(300, 0.01);
+    playSe(this, AUDIO_KEYS.seBossAppear.key, { volume: 0.3 });
 
     const fontPx = Math.min(64, Math.floor(this.worldWidth / 6));
     const banner = this.add.text(this.worldWidth / 2, this.worldHeight / 2, "BOSS!", {
@@ -479,12 +487,7 @@ export default class MainScene extends Phaser.Scene {
   spawnEnemy(typeId) {
     const def = ENEMY_TYPES[typeId];
     if (!def) return;
-    const side = Phaser.Math.Between(0, 3);
-    let x, y;
-    if (side === 0) { x = 0; y = Phaser.Math.Between(0, this.worldHeight); }
-    else if (side === 1) { x = this.worldWidth; y = Phaser.Math.Between(0, this.worldHeight); }
-    else if (side === 2) { x = Phaser.Math.Between(0, this.worldWidth); y = 0; }
-    else { x = Phaser.Math.Between(0, this.worldWidth); y = this.worldHeight; }
+    const { x, y } = this.pickSpawnPositionInside(def.size);
     const enemy = this.add.rectangle(x, y, def.size, def.size, def.color);
     this.enemies.add(enemy);
     enemy.typeId = typeId;
@@ -500,6 +503,45 @@ export default class MainScene extends Phaser.Scene {
       enemy.shotSpeed = def.shotSpeed;
       enemy.nextShotAt = this.time.now + Phaser.Math.Between(500, def.shootIntervalMs);
     }
+    this.runSpawnAnim(enemy);
+  }
+
+  // 画面内のランダム位置を選ぶ。プレイヤーから最低 MIN_DIST 離した位置。
+  pickSpawnPositionInside(size) {
+    const margin = size + 8;
+    const MIN_DIST = 120;
+    for (let i = 0; i < 20; i++) {
+      const x = Phaser.Math.Between(margin, this.worldWidth - margin);
+      const y = Phaser.Math.Between(margin, this.worldHeight - margin);
+      const d = Math.hypot(this.player.x - x, this.player.y - y);
+      if (d >= MIN_DIST) return { x, y };
+    }
+    // 20 回試して失敗したら諦めて画面端を返す (ほぼ起こらないはず)
+    return { x: margin, y: margin };
+  }
+
+  // 出現アニメ: 半透明 + 小スケール + 回転しながら通常状態へ。
+  // アニメ中は物理を止めて無敵扱いにする。
+  runSpawnAnim(enemy) {
+    enemy.isSpawning = true;
+    if (enemy.body) enemy.body.enable = false;
+    enemy.setAlpha(0);
+    enemy.setScale(0.2);
+    enemy.rotation = 0;
+    this.tweens.add({
+      targets: enemy,
+      alpha: { from: 0, to: 1 },
+      scale: { from: 0.2, to: 1 },
+      rotation: { from: 0, to: Math.PI * 2 },
+      duration: 500,
+      ease: "Cubic.easeOut",
+      onComplete: () => {
+        if (!enemy.active) return;
+        enemy.isSpawning = false;
+        enemy.rotation = 0;
+        if (enemy.body) enemy.body.enable = true;
+      },
+    });
   }
 
   fireEnemyBullet(enemy, nx, ny) {
@@ -627,6 +669,7 @@ export default class MainScene extends Phaser.Scene {
     this.phase = "clearing";
     this.cameras.main.flash(500, 250, 220, 100);
     this.shake(400, 0.015);
+    playSe(this, AUDIO_KEYS.seStageClear.key, { volume: 0.6 });
 
     // 視覚演出のみ (実数値ボーナスは endRun 内で別途加算)。
     const sparkles = 12;
@@ -697,6 +740,7 @@ export default class MainScene extends Phaser.Scene {
     this.player.setAlpha(0.4);
     this.shake(120, 0.008);
     hapticMedium();
+    playSe(this, AUDIO_KEYS.sePlayerHit.key, { volume: 0.5, minIntervalMs: 200 });
     if (this.hp <= 0) {
       if (this.reviveAvailable) {
         this.reviveAvailable = false;

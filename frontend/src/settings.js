@@ -5,6 +5,10 @@ const KEY = "skill-tree-shooter:settings";
 const DEFAULTS = {
   screenShake: true,
   haptics: true,
+  bgmEnabled: true,
+  seEnabled: true,
+  bgmVolume: 0.5,   // 0..1
+  seVolume: 0.7,    // 0..1
 };
 
 export function readSettings() {

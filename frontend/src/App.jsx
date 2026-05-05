@@ -7,6 +7,7 @@ import SettingsScreen from "./SettingsScreen";
 import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress } from "./api";
 import { readSettings, writeSettings } from "./settings";
 import { setHapticsEnabled } from "./haptics";
+import { startBgm, setBgmEnabled, setBgmVolume } from "./bgm";
 
 const SCREEN = {
   LOADING: "loading",
@@ -32,6 +33,8 @@ export default function App() {
   const [settings, setSettings] = useState(() => {
     const s = readSettings();
     setHapticsEnabled(s.haptics);
+    setBgmEnabled(s.bgmEnabled);
+    setBgmVolume(s.bgmVolume);
     return s;
   });
 
@@ -39,6 +42,8 @@ export default function App() {
     setSettings(next);
     writeSettings(next);
     setHapticsEnabled(next.haptics);
+    setBgmEnabled(next.bgmEnabled);
+    setBgmVolume(next.bgmVolume);
   };
 
   const handleWipeProgress = async () => {
@@ -140,7 +145,14 @@ export default function App() {
   }
 
   if (screen === SCREEN.TITLE) {
-    return <TitleScreen onStart={() => setScreen(SCREEN.TREE)} />;
+    return (
+      <TitleScreen
+        onStart={() => {
+          startBgm();
+          setScreen(SCREEN.TREE);
+        }}
+      />
+    );
   }
 
   if (screen === SCREEN.SETTINGS) {

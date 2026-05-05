@@ -1,12 +1,16 @@
 // 起動直後のタイトル画面。
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { startBgm } from "./bgm";
 
 export default function TitleScreen({ onStart }) {
   const [showHelp, setShowHelp] = useState(false);
 
+  // iOS WebView は autoplay を弾くので、タイトル表示時 + 画面タップ時に試行する。
+  useEffect(() => { startBgm(); }, []);
+
   return (
-    <div style={styles.wrap}>
+    <div style={styles.wrap} onPointerDown={() => startBgm()}>
       <div style={styles.center}>
         <h1 style={styles.title}>Skill Tree Shooter</h1>
         <p style={styles.subtitle}>全方位シューティング × ローグライト</p>

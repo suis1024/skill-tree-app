@@ -8,6 +8,7 @@
 
 import Phaser from "phaser";
 import { spawnExplosion } from "./effects";
+import { AUDIO_KEYS, playSe } from "./audio";
 
 const BULLET_LIFETIME_MS = 2000;
 const BOMB_LIFETIME_MS = 3000;
@@ -28,6 +29,7 @@ function findNearestEnemy(scene, fromX, fromY) {
 
 // ピストル: 移動方向に扇撃ち。bulletCount スキル (atk_multi) で扇が広がる。
 function firePistol(scene) {
+  playSe(scene, AUDIO_KEYS.sePistol.key, { volume: 0.18, minIntervalMs: 80 });
   const stats = scene.stats;
   const count = stats.bulletCount;
   const spread = (count - 1) * 0.18;
@@ -81,6 +83,7 @@ function fireBomb(scene) {
     },
     onComplete: () => {
       spawnExplosion(scene, tx, ty, radius);
+      playSe(scene, AUDIO_KEYS.seExplosion.key, { volume: 0.45, minIntervalMs: 100 });
       bomb.destroy();
       scene.enemies.children.iterate((e) => {
         if (!e || !e.active) return;
@@ -97,6 +100,7 @@ function fireThunder(scene) {
   const stats = scene.stats;
   const first = findNearestEnemy(scene, scene.player.x, scene.player.y);
   if (!first) return;
+  playSe(scene, AUDIO_KEYS.seThunder.key, { volume: 0.4, minIntervalMs: 150 });
   const damage = 2 * stats.damageMul * (stats.thunderDamageMul ?? 1);
   const chainCount = 3 + (stats.thunderChainAdd ?? 0);
   const chainRadius = 160;
@@ -180,6 +184,7 @@ function fireHoming(scene) {
   const damage = 1 * stats.damageMul * (stats.homingDamageMul ?? 1);
   const speed = 280;
   const count = 1 + (stats.homingCountAdd ?? 0);
+  if (count > 0) playSe(scene, AUDIO_KEYS.seHoming.key, { volume: 0.3, minIntervalMs: 150 });
   for (let i = 0; i < count; i++) {
     const target = findNearestEnemy(scene, scene.player.x, scene.player.y);
     if (!target) break;

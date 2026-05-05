@@ -1,13 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { makeGameConfig } from "./game/MainScene";
-import { readSettings } from "./settings";
+import { readSettings, writeSettings } from "./settings";
+import { setBgmEnabled, setBgmVolume } from "./bgm";
 
 export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, onAbort }) {
   const containerRef = useRef(null);
   const gameRef = useRef(null);
   const onRunEndedRef = useRef(onRunEnded);
   const [paused, setPaused] = useState(false);
+  const [settings, setSettings] = useState(() => readSettings());
+
+  // 設定変更時: 永続化 → BGM 反映 → ゲーム中の Phaser registry にも即時反映
+  // (SE 側は scene.audio.settings が同じ参照なので mutate でも届くが、
+  //  分かりやすさ重視で都度 set し直す)
+  const updateSettings = (next) => {
+    setSettings(next);
+    writeSettings(next);
+    setBgmEnabled(next.bgmEnabled);
+    setBgmVolume(next.bgmVolume);
+    const scene = gameRef.current?.scene?.getScene("MainScene");
+    if (scene) {
+      gameRef.current.registry.set("settings", next);
+      if (scene.audio) scene.audio.settings = next;
+      scene.settings = next;
+    }
+  };
 
   useEffect(() => {
     onRunEndedRef.current = onRunEnded;
@@ -73,7 +91,26 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
             <h2 style={{ margin: "0 0 12px" }}>一時停止</h2>
             <button style={primaryBtn} onClick={handleResume}>▶ 再開</button>
             <button style={secondaryBtn} onClick={handleAbort}>放棄してスキルツリーへ</button>
-            <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 8 }}>
+
+            <div style={settingsBlock}>
+              <h3 style={settingsTitle}>サウンド</h3>
+              <SettingRow
+                label="BGM"
+                checked={settings.bgmEnabled}
+                onToggle={(v) => updateSettings({ ...settings, bgmEnabled: v })}
+                value={settings.bgmVolume}
+                onValue={(v) => updateSettings({ ...settings, bgmVolume: v })}
+              />
+              <SettingRow
+                label="効果音"
+                checked={settings.seEnabled}
+                onToggle={(v) => updateSettings({ ...settings, seEnabled: v })}
+                value={settings.seVolume}
+                onValue={(v) => updateSettings({ ...settings, seVolume: v })}
+              />
+            </div>
+
+            <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 12 }}>
               放棄すると今回稼いだコインは破棄されます。
             </p>
           </div>
@@ -148,3 +185,44 @@ const secondaryBtn = {
   borderRadius: 6,
   cursor: "pointer",
 };
+
+const settingsBlock = {
+  marginTop: 16,
+  paddingTop: 12,
+  borderTop: "1px solid #334155",
+  textAlign: "left",
+};
+
+const settingsTitle = {
+  margin: "0 0 8px",
+  fontSize: 12,
+  color: "#fde047",
+  letterSpacing: 1,
+};
+
+function SettingRow({ label, checked, onToggle, value, onValue }) {
+  const pct = Math.round((value ?? 0) * 100);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
+      <label style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 88, fontSize: 13 }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(e) => onToggle(e.target.checked)}
+          style={{ accentColor: "#22c55e" }}
+        />
+        {label}
+      </label>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        value={pct}
+        disabled={!checked}
+        onChange={(e) => onValue(Number(e.target.value) / 100)}
+        style={{ flex: 1, accentColor: "#22c55e", opacity: checked ? 1 : 0.4 }}
+      />
+      <span style={{ width: 28, textAlign: "right", fontSize: 12, color: "#94a3b8" }}>{pct}</span>
+    </div>
+  );
+}
