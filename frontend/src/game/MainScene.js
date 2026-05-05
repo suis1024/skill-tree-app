@@ -27,7 +27,8 @@ export default class MainScene extends Phaser.Scene {
       this.worldWidth = gameSize.width;
       this.worldHeight = gameSize.height;
       this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
-      if (this.timeText) this.timeText.setX(this.worldWidth - 16);
+      if (this.timeText) this.timeText.setX(this.worldWidth / 2);
+      if (this.stageText) this.stageText.setX(this.worldWidth / 2);
     });
 
     const skillLevels = this.registry.get("skillLevels") || {};
@@ -120,10 +121,11 @@ export default class MainScene extends Phaser.Scene {
     this.coinText = this.add.text(16, top + 24, "", style).setDepth(2000);
     this.stageText = this.add.text(this.worldWidth / 2, top, `STAGE ${this.stageNumber}`, style)
       .setOrigin(0.5, 0).setDepth(2000);
-    this.timeText = this.add.text(this.worldWidth - 16, top, "", style).setOrigin(1, 0).setDepth(2000);
+    // 時間表示は STAGE の下に 2 段で。HP の右、⏸ ボタンの下に来るので被らない。
+    this.timeText = this.add.text(this.worldWidth / 2, top + 24, "", style).setOrigin(0.5, 0).setDepth(2000);
     this.bossHpBar = null;
     this.bossHpBarBg = null;
-    this.bossLabel = this.add.text(this.worldWidth / 2, top + 28, "", small)
+    this.bossLabel = this.add.text(this.worldWidth / 2, top + 48, "", small)
       .setOrigin(0.5, 0).setDepth(2000);
     this.refreshHud();
   }
@@ -155,7 +157,7 @@ export default class MainScene extends Phaser.Scene {
     const w = Math.min(360, this.worldWidth - 60);
     const h = 6;
     const x = (this.worldWidth - w) / 2;
-    const y = top + 50;
+    const y = top + 70;
     if (!this.bossHpBarBg) {
       this.bossHpBarBg = this.add.rectangle(x, y, w, h, 0x334155).setOrigin(0, 0).setDepth(2000);
       this.bossHpBar = this.add.rectangle(x, y, w, h, 0xef4444).setOrigin(0, 0).setDepth(2001);

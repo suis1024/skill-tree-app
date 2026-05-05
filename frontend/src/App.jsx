@@ -2,10 +2,12 @@ import { useEffect, useState } from "react";
 import PhaserGame from "./PhaserGame";
 import SkillTreeScreen from "./SkillTreeScreen";
 import StageSelectScreen from "./StageSelectScreen";
+import TitleScreen from "./TitleScreen";
 import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills } from "./api";
 
 const SCREEN = {
   LOADING: "loading",
+  TITLE: "title",
   TREE: "tree",
   STAGE_SELECT: "stageSelect",
   GAME: "game",
@@ -32,7 +34,7 @@ export default function App() {
         setCoins(data.coins);
         setSkillLevels(data.skill_levels || {});
         setClearedStages(data.cleared_stages || []);
-        setScreen(SCREEN.TREE);
+        setScreen(SCREEN.TITLE);
       })
       .catch((e) => {
         if (cancelled) return;
@@ -108,6 +110,10 @@ export default function App() {
         onAbort={() => setScreen(SCREEN.TREE)}
       />
     );
+  }
+
+  if (screen === SCREEN.TITLE) {
+    return <TitleScreen onStart={() => setScreen(SCREEN.TREE)} />;
   }
 
   return (
