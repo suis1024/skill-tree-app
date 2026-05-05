@@ -4,7 +4,7 @@ import {
   SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, nextCost, isUnlockable,
 } from "./game/skills";
 
-export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onReset, busy }) {
+export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onReset, onBackToTitle, busy }) {
   const [selectedId, setSelectedId] = useState(null);
   const selected = selectedId ? SKILL_BY_ID[selectedId] : null;
 
@@ -20,7 +20,12 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
   return (
     <div style={styles.wrap}>
       <header style={styles.header}>
-        <h2 style={{ margin: 0 }}>スキルツリー</h2>
+        <div style={styles.headerLeft}>
+          {onBackToTitle && (
+            <button type="button" onClick={onBackToTitle} style={styles.backButton}>← タイトル</button>
+          )}
+          <h2 style={{ margin: 0 }}>スキルツリー</h2>
+        </div>
         <div style={styles.headerRight}>
           <span style={styles.coin}>COIN: <strong>{coins}</strong></span>
           {onReset && (
@@ -214,7 +219,12 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
 const styles = {
   wrap: { padding: "12px 12px 200px", color: "#e2e8f0" },
   header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 12 },
+  headerLeft: { display: "flex", alignItems: "center", gap: 12 },
   headerRight: { display: "flex", alignItems: "center", gap: 16 },
+  backButton: {
+    background: "#334155", color: "#e2e8f0", border: "none",
+    padding: "8px 14px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+  },
   coin: { fontSize: 18, color: "#fde047" },
   startButton: {
     background: "#22c55e", color: "#0f172a", border: "none", padding: "10px 22px",

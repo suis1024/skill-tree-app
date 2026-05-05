@@ -138,6 +138,7 @@ export default function App() {
           onUpgrade={handleUpgrade}
           onStart={handleGoStageSelect}
           onReset={handleReset}
+          onBackToTitle={() => setScreen(SCREEN.TITLE)}
           busy={busy}
         />
       )}
