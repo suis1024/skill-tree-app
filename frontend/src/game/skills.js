@@ -45,19 +45,25 @@ export const SKILLS = [
 
   // 武器固有強化 (各武器の子ノード)
   { id: "bomb_radius", category: "weapon", name: "爆弾の範囲",     maxLevel: 5, desc: "爆発半径 +20% / Lv",
-    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 480 } },
+    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 460 } },
   { id: "bomb_damage", category: "weapon", name: "爆弾の威力",     maxLevel: 5, desc: "爆弾ダメージ +25% / Lv",
-    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 540 } },
+    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 520 } },
+  { id: "bomb_range", category: "weapon", name: "爆弾の射程",      maxLevel: 5, desc: "投射射程 +20% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 60, y: 420 } },
 
   { id: "thunder_chain",  category: "weapon", name: "サンダー連鎖", maxLevel: 5, desc: "連鎖数 +1 / Lv",
     requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 600 } },
   { id: "thunder_damage", category: "weapon", name: "サンダー威力", maxLevel: 5, desc: "サンダーダメージ +25% / Lv",
     requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 660 } },
+  { id: "thunder_range",  category: "weapon", name: "サンダー射程", maxLevel: 5, desc: "射程 +20% / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 150, y: 600 } },
 
   { id: "homing_count",  category: "weapon", name: "ホーミング数",  maxLevel: 5, desc: "1 回の発射で +1 / Lv",
     requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 720 } },
   { id: "homing_damage", category: "weapon", name: "ホーミング威力", maxLevel: 5, desc: "ホーミングダメージ +25% / Lv",
     requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 780 } },
+  { id: "homing_range",  category: "weapon", name: "ホーミング射程", maxLevel: 5, desc: "追尾射程 +20% / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 530, y: 720 } },
 
   { id: "orbital_count", category: "weapon", name: "オービタル数",  maxLevel: 4, desc: "周回弾の個数 +1 / Lv (初期 2)",
     requires: { id: "wpn_unlock_orbital", level: 1 }, pos: { x: 80, y: 780 } },
@@ -145,10 +151,13 @@ export function computeStats(skillLevels) {
     weapons:          equippedWeapons(skillLevels),
     bombRadiusMul:    1 + lv("bomb_radius")  * 0.20,
     bombDamageMul:    1 + lv("bomb_damage")  * 0.25,
+    bombRange:        350 * (1 + lv("bomb_range")    * 0.20),
     thunderChainAdd:  lv("thunder_chain"),
     thunderDamageMul: 1 + lv("thunder_damage") * 0.25,
+    thunderRange:     220 * (1 + lv("thunder_range") * 0.20),
     homingCountAdd:   lv("homing_count"),
     homingDamageMul:  1 + lv("homing_damage")  * 0.25,
+    homingRange:      400 * (1 + lv("homing_range")  * 0.20),
     orbitalCountAdd:  lv("orbital_count"),
     orbitalDamageMul: 1 + lv("orbital_damage") * 0.25,
   };

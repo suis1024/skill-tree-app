@@ -1,7 +1,8 @@
 import Phaser from "phaser";
 import { computeStats } from "./skills";
-import { ENEMY_TYPES, pickEnemyType, spawnIntervalMs, spawnBatchSize } from "./enemies";
+import { ENEMY_TYPES } from "./enemies";
 import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
+import { getStageWaves } from "./waves";
 import { bossForStage } from "./bosses";
 import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
 import { spawnDeathBurst, popDamageText, popCoinText } from "./effects";
@@ -51,7 +52,6 @@ export default class MainScene extends Phaser.Scene {
     this.hp = this.maxHp;
     this.coins = this.stats.startBonus;
     this.elapsedMs = 0;
-    this.lastSpawnTuneMs = 0;
     this.regenAccum = 0;
     this.lastDamagedAt = 0;
     this.gameOverActive = false;
@@ -105,12 +105,7 @@ export default class MainScene extends Phaser.Scene {
       if (wid === "orbital") w.fire(this);
     }
 
-    this.currentSpawnInterval = spawnIntervalMs(0);
-    this.spawnTimer = this.time.addEvent({
-      delay: this.currentSpawnInterval,
-      loop: true,
-      callback: () => this.spawnWave(),
-    });
+    this.setupWaves();
 
     this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => this.onBulletHit(bullet, enemy));
     this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => this.hitPlayer(enemy, enemy.contactDamage || 1));
@@ -252,6 +247,12 @@ export default class MainScene extends Phaser.Scene {
             this.fireRing(enemy, 10, 220);
           }
         }
+      } else if (enemy.isBouncer) {
+        this.updateBouncer(enemy);
+      } else if (enemy.isTurret) {
+        this.updateTurret(enemy);
+      } else if (enemy.isCharger) {
+        this.updateCharger(enemy, nx, ny, dist);
       } else if (enemy.canShoot && enemy.preferredDistance) {
         const diff = dist - enemy.preferredDistance;
         const dir = Math.abs(diff) < 16 ? 0 : Math.sign(diff);
@@ -274,15 +275,6 @@ export default class MainScene extends Phaser.Scene {
     });
 
     if (this.phase === "wave") {
-      if (this.elapsedMs - this.lastSpawnTuneMs > 2000) {
-        this.lastSpawnTuneMs = this.elapsedMs;
-        const baseInterval = spawnIntervalMs(this.elapsedMs / 1000);
-        const next = Math.max(150, Math.round(baseInterval / this.difficultyMul));
-        if (next !== this.currentSpawnInterval) {
-          this.currentSpawnInterval = next;
-          this.spawnTimer.delay = next;
-        }
-      }
       if (this.elapsedMs >= WAVE_DURATION_MS) {
         this.startBossPhase();
       }
@@ -362,13 +354,40 @@ export default class MainScene extends Phaser.Scene {
     this.joystickKnob.setVisible(false);
   }
 
-  spawnWave() {
-    if (this.gameOverActive || this.phase !== "wave") return;
-    const elapsedSec = this.elapsedMs / 1000;
-    const batch = spawnBatchSize(elapsedSec, this.stageNumber);
-    for (let i = 0; i < batch; i++) {
-      const type = pickEnemyType(elapsedSec, this.stageNumber);
-      this.spawnEnemy(type);
+  // ステージごとの wave 群を読み、それぞれに専用タイマーを張る。
+  setupWaves() {
+    this.waveTimers = [];
+    const waves = getStageWaves(this.stageNumber);
+    for (const w of waves) {
+      const startMs = (w.startSec ?? 0) * 1000;
+      const endMs   = (w.endSec ?? 90) * 1000;
+      const startWave = () => {
+        if (this.gameOverActive || this.phase !== "wave") return;
+        let count = 0;
+        const tick = () => {
+          if (this.gameOverActive || this.phase !== "wave") return;
+          if (this.elapsedMs >= endMs) return;
+          if (typeof w.count === "number" && count >= w.count) return;
+          this.spawnEnemy(w.type, {
+            hpMul: w.hpMul, speedMul: w.speedMul, damageMul: w.damageMul,
+          });
+          count++;
+        };
+        // 即時 1 体 + 以降 intervalMs ごと
+        tick();
+        const t = this.time.addEvent({
+          delay: w.intervalMs ?? 1000,
+          loop: true,
+          callback: tick,
+        });
+        this.waveTimers.push(t);
+      };
+      if (startMs <= 0) {
+        startWave();
+      } else {
+        const delayed = this.time.delayedCall(startMs, startWave);
+        this.waveTimers.push(delayed);
+      }
     }
   }
 
@@ -376,7 +395,7 @@ export default class MainScene extends Phaser.Scene {
     if (this.phase !== "wave") return;
     this.phase = "boss";
     this.bossPhaseStartedMs = this.elapsedMs;
-    this.spawnTimer.remove();
+    if (this.waveTimers) this.waveTimers.forEach((t) => t.remove());
     this.enemies.children.iterate((e) => {
       if (!e) return;
       if (e.hpBar) e.hpBar.destroy();
@@ -484,17 +503,20 @@ export default class MainScene extends Phaser.Scene {
     }
   }
 
-  spawnEnemy(typeId) {
+  spawnEnemy(typeId, mods = {}) {
     const def = ENEMY_TYPES[typeId];
     if (!def) return;
+    const hpMul = (mods.hpMul ?? 1) * this.difficultyMul;
+    const speedMul = (mods.speedMul ?? 1) * (1 + (this.difficultyMul - 1) * 0.4);
+    const damageMul = (mods.damageMul ?? 1) * this.difficultyMul;
     const { x, y } = this.pickSpawnPositionInside(def.size);
     const enemy = this.add.rectangle(x, y, def.size, def.size, def.color);
     this.enemies.add(enemy);
     enemy.typeId = typeId;
-    enemy.hp = Math.max(1, Math.round(def.hp * this.difficultyMul));
+    enemy.hp = Math.max(1, Math.round(def.hp * hpMul));
     enemy.hpMax = enemy.hp;
-    enemy.speed = def.speed * (1 + (this.difficultyMul - 1) * 0.4);
-    enemy.contactDamage = Math.max(1, Math.round(def.contactDamage * this.difficultyMul));
+    enemy.speed = def.speed * speedMul;
+    enemy.contactDamage = Math.max(1, Math.round(def.contactDamage * damageMul));
     enemy.coinDrop = def.coinDrop;
     enemy.canShoot = def.canShoot;
     if (def.canShoot) {
@@ -503,7 +525,118 @@ export default class MainScene extends Phaser.Scene {
       enemy.shotSpeed = def.shotSpeed;
       enemy.nextShotAt = this.time.now + Phaser.Math.Between(500, def.shootIntervalMs);
     }
+    if (def.isBouncer) {
+      enemy.isBouncer = true;
+      // ランダム方向に等速直線で動かす
+      const ang = Math.random() * Math.PI * 2;
+      enemy.bounceVx = Math.cos(ang) * enemy.speed;
+      enemy.bounceVy = Math.sin(ang) * enemy.speed;
+    }
+    if (def.isTurret) {
+      enemy.isTurret = true;
+      enemy.turretShotIntervalMs = def.turretShotIntervalMs;
+      enemy.turretShotSpeed = def.turretShotSpeed;
+      enemy.turretRotateRate = def.turretRotateRate;
+      enemy.turretAngle = Math.random() * Math.PI * 2;
+      enemy.nextTurretShotAt = this.time.now + 600;
+    }
+    if (def.isCharger) {
+      enemy.isCharger = true;
+      enemy.chargeDetectRange = def.chargeDetectRange;
+      enemy.chargeTelegraphMs = def.chargeTelegraphMs;
+      enemy.chargeDurationMs = def.chargeDurationMs;
+      enemy.chargeSpeed = def.chargeSpeed;
+      enemy.chargeState = "idle"; // idle / telegraphing / charging / cooldown
+      enemy.chargeStateUntil = 0;
+      enemy.chargeDirX = 0;
+      enemy.chargeDirY = 0;
+    }
     this.runSpawnAnim(enemy);
+  }
+
+  updateBouncer(enemy) {
+    enemy.body.setVelocity(enemy.bounceVx, enemy.bounceVy);
+    // 端に当たったら反転 (sprite の半サイズで判定)
+    const half = (enemy.displayWidth || 22) / 2;
+    if (enemy.x <= half && enemy.bounceVx < 0) enemy.bounceVx = -enemy.bounceVx;
+    if (enemy.x >= this.worldWidth - half && enemy.bounceVx > 0) enemy.bounceVx = -enemy.bounceVx;
+    if (enemy.y <= half && enemy.bounceVy < 0) enemy.bounceVy = -enemy.bounceVy;
+    if (enemy.y >= this.worldHeight - half && enemy.bounceVy > 0) enemy.bounceVy = -enemy.bounceVy;
+  }
+
+  updateTurret(enemy) {
+    enemy.body.setVelocity(0, 0);
+    enemy.turretAngle += enemy.turretRotateRate;
+    enemy.rotation = enemy.turretAngle;
+    if (this.time.now >= enemy.nextTurretShotAt) {
+      enemy.nextTurretShotAt = this.time.now + enemy.turretShotIntervalMs;
+      // 5 方向に放射
+      for (let i = 0; i < 5; i++) {
+        const a = enemy.turretAngle + (Math.PI * 2 * i) / 5;
+        const eb = this.add.circle(enemy.x, enemy.y, 5, 0xfca5a5);
+        this.enemyBullets.add(eb);
+        eb.body.setCircle(eb.radius);
+        eb.body.setVelocity(Math.cos(a) * enemy.turretShotSpeed, Math.sin(a) * enemy.turretShotSpeed);
+        this.time.delayedCall(4000, () => eb.destroy());
+      }
+    }
+  }
+
+  updateCharger(enemy, nx, ny, dist) {
+    const now = this.time.now;
+    switch (enemy.chargeState) {
+      case "idle": {
+        // 検知範囲外なら通常追跡
+        if (dist <= enemy.chargeDetectRange) {
+          enemy.chargeState = "telegraphing";
+          enemy.chargeStateUntil = now + enemy.chargeTelegraphMs;
+          enemy.body.setVelocity(0, 0);
+          // 予兆: 点滅
+          this.tweens.add({
+            targets: enemy,
+            alpha: { from: 1, to: 0.4 },
+            yoyo: true,
+            repeat: 3,
+            duration: enemy.chargeTelegraphMs / 8,
+          });
+        } else {
+          enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+        }
+        break;
+      }
+      case "telegraphing": {
+        if (now >= enemy.chargeStateUntil) {
+          // 予兆終了 → 突進方向ロック (現在のプレイヤー方向)
+          enemy.chargeDirX = nx;
+          enemy.chargeDirY = ny;
+          enemy.chargeState = "charging";
+          enemy.chargeStateUntil = now + enemy.chargeDurationMs;
+          enemy.alpha = 1;
+        } else {
+          enemy.body.setVelocity(0, 0);
+        }
+        break;
+      }
+      case "charging": {
+        if (now >= enemy.chargeStateUntil) {
+          enemy.chargeState = "cooldown";
+          enemy.chargeStateUntil = now + 800;
+        } else {
+          enemy.body.setVelocity(
+            enemy.chargeDirX * enemy.chargeSpeed,
+            enemy.chargeDirY * enemy.chargeSpeed,
+          );
+        }
+        break;
+      }
+      case "cooldown": {
+        enemy.body.setVelocity(0, 0);
+        if (now >= enemy.chargeStateUntil) {
+          enemy.chargeState = "idle";
+        }
+        break;
+      }
+    }
   }
 
   // 画面内のランダム位置を選ぶ。プレイヤーから最低 MIN_DIST 離した位置。
@@ -757,7 +890,7 @@ export default class MainScene extends Phaser.Scene {
     if (this.gameOverActive) return;
     this.gameOverActive = true;
     if (this.weaponTimers) this.weaponTimers.forEach((t) => t.remove());
-    if (this.spawnTimer) this.spawnTimer.remove();
+    if (this.waveTimers) this.waveTimers.forEach((t) => t.remove());
     if (!cleared) this.player.setFillStyle(0x475569);
     this.player.setAlpha(1);
 

@@ -41,45 +41,47 @@ export const ENEMY_TYPES = {
     shotSpeed: 220,
     preferredDistance: 240,
   },
+  // 跳ね返り: 壁で完全反射しながら直線移動。攻撃なし、ホーミングなし、HP 多め。
+  bouncer: {
+    color: 0x14b8a6,
+    size: 22,
+    hp: 8,
+    speed: 180,    // 反射するので速度高め
+    contactDamage: 1,
+    coinDrop: 2,
+    canShoot: false,
+    isBouncer: true,
+  },
+  // タレット: その場停止、回転しながら 5 方向に弾撒き。
+  turret: {
+    color: 0x9333ea,
+    size: 26,
+    hp: 6,
+    speed: 0,
+    contactDamage: 1,
+    coinDrop: 2,
+    canShoot: false, // 通常の単発射撃ではなく専用パターン
+    isTurret: true,
+    turretShotIntervalMs: 1800,
+    turretShotSpeed: 180,
+    turretRotateRate: 0.018, // rad/frame
+  },
+  // 突進: 一定距離で予兆 → 急加速突進。
+  charger: {
+    color: 0xfb923c,
+    size: 26,
+    hp: 8,
+    speed: 60,           // 通常時
+    contactDamage: 3,    // 突進時は痛い
+    coinDrop: 2,
+    canShoot: false,
+    isCharger: true,
+    chargeDetectRange: 240,
+    chargeTelegraphMs: 500,
+    chargeDurationMs: 800,
+    chargeSpeed: 380,
+  },
 };
 
-// 経過時間 (秒) とステージ番号に応じて出現可能な敵タイプを返す。
-// ステージが進むほど解禁が早まる。
-export function availableTypes(elapsedSec, stageNumber = 1) {
-  const acc = Math.max(0, (stageNumber - 1) * 12); // st2 で +12s 分加速
-  const t = elapsedSec + acc;
-  const types = ["grunt"];
-  if (t >= 30) types.push("swift");
-  if (t >= 70) types.push("tank");
-  if (t >= 130) types.push("shooter");
-  return types;
-}
-
-// 経過秒に応じてスポーン間隔 (ms)。後半ほど短く。最小 250ms (難易度倍率で更に短縮可)。
-export function spawnIntervalMs(elapsedSec) {
-  const t = Math.min(1, elapsedSec / 90);
-  return Math.round(900 - t * 600); // 0s: 900ms → 90s: 300ms
-}
-
-// 1 回のスポーンで何体出すか。後半・後ステージほど多い。
-export function spawnBatchSize(elapsedSec, stageNumber = 1) {
-  let n = 1;
-  if (elapsedSec >= 60) n += 1;
-  if (stageNumber >= 6) n += 1;
-  return Math.min(4, n);
-}
-
-// 出現タイプの重み付き選択 (経過秒+ステージ番号で強い敵の出現率も上がる)。
-export function pickEnemyType(elapsedSec, stageNumber = 1, rng = Math.random) {
-  const types = availableTypes(elapsedSec, stageNumber);
-  // ステージ後半は強い敵 (後ろのもの) の重みを上げる
-  const stageBoost = Math.min(3, (stageNumber - 1) * 0.3);
-  const weights = types.map((_, i) => Math.max(1, 4 - i + i * stageBoost));
-  const total = weights.reduce((a, b) => a + b, 0);
-  let r = rng() * total;
-  for (let i = 0; i < types.length; i++) {
-    r -= weights[i];
-    if (r < 0) return types[i];
-  }
-  return types[0];
-}
+// 旧来の availableTypes / pickEnemyType / spawnIntervalMs / spawnBatchSize は
+// ステージごとの wave 制 (waves.js) に置き換えたため削除した。

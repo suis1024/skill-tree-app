@@ -58,6 +58,9 @@ function fireBomb(scene) {
   const stats = scene.stats;
   const target = findNearestEnemy(scene, scene.player.x, scene.player.y);
   if (!target) return;
+  // 射程外なら撃たない
+  const distToTarget = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, target.x, target.y);
+  if (distToTarget > (stats.bombRange ?? Infinity)) return;
   const tx = target.x;
   const ty = target.y;
   const startX = scene.player.x;
@@ -100,6 +103,8 @@ function fireThunder(scene) {
   const stats = scene.stats;
   const first = findNearestEnemy(scene, scene.player.x, scene.player.y);
   if (!first) return;
+  const distToFirst = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, first.x, first.y);
+  if (distToFirst > (stats.thunderRange ?? Infinity)) return;
   playSe(scene, AUDIO_KEYS.seThunder.key, { volume: 0.4, minIntervalMs: 150 });
   const damage = 2 * stats.damageMul * (stats.thunderDamageMul ?? 1);
   const chainCount = 3 + (stats.thunderChainAdd ?? 0);
@@ -181,6 +186,11 @@ function drawLightning(scene, x1, y1, x2, y2) {
 // ホーミング: 一番近い敵を追尾する弾を 1 + homingCountAdd 発放つ。
 function fireHoming(scene) {
   const stats = scene.stats;
+  // 射程内に敵がいなければ何もしない (タイマーは消費される)
+  const nearest = findNearestEnemy(scene, scene.player.x, scene.player.y);
+  if (!nearest) return;
+  const distNearest = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, nearest.x, nearest.y);
+  if (distNearest > (stats.homingRange ?? Infinity)) return;
   const damage = 1 * stats.damageMul * (stats.homingDamageMul ?? 1);
   const speed = 280;
   const count = 1 + (stats.homingCountAdd ?? 0);
