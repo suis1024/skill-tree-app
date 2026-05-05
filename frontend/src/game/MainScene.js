@@ -4,7 +4,7 @@ import { ENEMY_TYPES, pickEnemyType, spawnIntervalMs, spawnBatchSize } from "./e
 import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
 import { bossForStage } from "./bosses";
 import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
-import { spawnDeathBurst, popDamageText } from "./effects";
+import { spawnDeathBurst, popDamageText, popCoinText } from "./effects";
 
 const PLAYER_BASE_SPEED = 220;
 const COIN_BASE_PICKUP_RADIUS = 60;
@@ -391,6 +391,18 @@ export default class MainScene extends Phaser.Scene {
       onComplete: () => banner.destroy(),
     });
 
+    // ボス出現位置に脈動マーカーを出して、800ms 後に本体スポーン
+    const tx = this.worldWidth / 2;
+    const ty = Math.min(120, this.worldHeight * 0.2);
+    const marker = this.add.circle(tx, ty, 50, 0xef4444, 0).setStrokeStyle(3, 0xef4444, 0.9).setDepth(2999);
+    this.tweens.add({
+      targets: marker,
+      scale: { from: 0.4, to: 1.2 },
+      alpha: { from: 1, to: 0 },
+      duration: 700,
+      onComplete: () => marker.destroy(),
+    });
+
     this.time.delayedCall(800, () => this.spawnBoss());
   }
 
@@ -529,6 +541,16 @@ export default class MainScene extends Phaser.Scene {
       return;
     }
     this.ensureEnemyHpBar(enemy);
+    if (isCrit) this.hitStop(40);
+  }
+
+  // 物理だけを短時間止めて手応えを出す。tween/演出は通常通り進む。
+  hitStop(ms) {
+    if (this.gameOverActive) return;
+    this.physics.world.pause();
+    this.time.delayedCall(ms, () => {
+      if (!this.gameOverActive) this.physics.world.resume();
+    });
   }
 
   ensureEnemyHpBar(enemy) {
@@ -582,6 +604,7 @@ export default class MainScene extends Phaser.Scene {
     }
     if (wasBoss) {
       this.boss = null;
+      this.hitStop(150);
       this.onBossDefeated(x, y);
     }
   }
@@ -637,8 +660,12 @@ export default class MainScene extends Phaser.Scene {
 
   pickupCoin(coin) {
     const value = coin.value || 1;
+    const gained = Math.round(value * this.stats.coinMul);
+    const x = coin.x;
+    const y = coin.y;
     coin.destroy();
-    this.coins += Math.round(value * this.stats.coinMul);
+    this.coins += gained;
+    popCoinText(this, x, y, gained);
   }
 
   hitPlayer(enemy, rawDamage) {

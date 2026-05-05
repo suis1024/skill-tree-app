@@ -72,6 +72,29 @@ export function spawnExplosion(scene, x, y, radius) {
   scene.cameras.main.shake(120, 0.006);
 }
 
+// コイン拾得ポップ。プレイヤー上に小さく "+N" を浮かす。
+export function popCoinText(scene, x, y, amount) {
+  const txt = scene.add
+    .text(x, y, `+${amount}`, {
+      fontFamily: "system-ui, sans-serif",
+      fontSize: "13px",
+      color: "#fde047",
+      stroke: "#1f2937",
+      strokeThickness: 2,
+      fontStyle: "bold",
+    })
+    .setOrigin(0.5, 1)
+    .setDepth(1900);
+  scene.tweens.add({
+    targets: txt,
+    y: y - 24,
+    alpha: { from: 1, to: 0 },
+    duration: 420,
+    ease: "Cubic.easeOut",
+    onComplete: () => txt.destroy(),
+  });
+}
+
 // ダメージ数値ポップ。クリティカルは大きく・色違いで。
 export function popDamageText(scene, x, y, dmg, isCrit = false) {
   const value = Math.max(1, Math.round(dmg));
