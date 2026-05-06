@@ -35,7 +35,7 @@ function firePistol(scene) {
   const spread = (count - 1) * 0.18;
   const baseAngle = Math.atan2(scene.aimDir.y, scene.aimDir.x);
   const start = baseAngle - spread / 2;
-  const baseDamage = 1 * stats.damageMul;
+  const baseDamage = 10 * stats.damageMul;
   const speed = 500;
   for (let i = 0; i < count; i++) {
     const angle = count === 1 ? baseAngle : start + (spread * i) / (count - 1);
@@ -66,7 +66,7 @@ function fireBomb(scene) {
   const startX = scene.player.x;
   const startY = scene.player.y;
   const radius = 90 * (stats.bombRadiusMul ?? 1);
-  const damage = 3 * stats.damageMul * (stats.bombDamageMul ?? 1);
+  const damage = 30 * stats.damageMul * (stats.bombDamageMul ?? 1);
   const flightMs = 600;
   const peakOffset = -60;
 
@@ -106,7 +106,7 @@ function fireThunder(scene) {
   const distToFirst = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, first.x, first.y);
   if (distToFirst > (stats.thunderRange ?? Infinity)) return;
   playSe(scene, AUDIO_KEYS.seThunder.key, { volume: 0.4, minIntervalMs: 150 });
-  const damage = 2 * stats.damageMul * (stats.thunderDamageMul ?? 1);
+  const damage = 20 * stats.damageMul * (stats.thunderDamageMul ?? 1);
   const chainCount = 3 + (stats.thunderChainAdd ?? 0);
   const chainRadius = 160;
 
@@ -191,7 +191,7 @@ function fireHoming(scene) {
   if (!nearest) return;
   const distNearest = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, nearest.x, nearest.y);
   if (distNearest > (stats.homingRange ?? Infinity)) return;
-  const damage = 1 * stats.damageMul * (stats.homingDamageMul ?? 1);
+  const damage = 10 * stats.damageMul * (stats.homingDamageMul ?? 1);
   const speed = 280;
   const count = 1 + (stats.homingCountAdd ?? 0);
   if (count > 0) playSe(scene, AUDIO_KEYS.seHoming.key, { volume: 0.3, minIntervalMs: 150 });
@@ -216,13 +216,13 @@ function fireHoming(scene) {
 function ensureOrbital(scene) {
   const stats = scene.stats;
   const expectedCount = 2 + (stats.orbitalCountAdd ?? 0);
-  const damage = 1 * stats.damageMul * (stats.orbitalDamageMul ?? 1);
+  const damage = 10 * stats.damageMul * (stats.orbitalDamageMul ?? 1);
   if (scene.orbitalGroup && scene.orbitalGroup.length === expectedCount) return;
   // 数が変わったら作り直し (実戦中はスキル変動しないので初回のみここに来る)
   if (scene.orbitalGroup) scene.orbitalGroup.forEach((o) => o.destroy());
   scene.orbitalGroup = [];
   for (let i = 0; i < expectedCount; i++) {
-    const o = scene.add.circle(scene.player.x, scene.player.y, 9, 0x22d3ee);
+    const o = scene.add.circle(scene.player.x, scene.player.y, 5, 0x22d3ee);
     scene.bullets.add(o);
     o.body.setCircle(o.radius);
     o.damage = damage;
@@ -244,7 +244,7 @@ export const WEAPONS = {
 // 周回弾の位置更新 (毎フレーム呼ぶ)。プレイヤー座標から radius=50 で回る。
 export function updateOrbitals(scene, dtMs) {
   if (!scene.orbitalGroup || scene.orbitalGroup.length === 0) return;
-  const radius = 56;
+  const radius = 110;
   const angularSpeed = 0.005; // rad/ms
   for (const o of scene.orbitalGroup) {
     if (!o.active) continue;

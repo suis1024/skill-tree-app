@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { computeStats } from "./skills";
 import { ENEMY_TYPES } from "./enemies";
-import { WAVE_DURATION_MS, difficultyMul, clearBonusCoins } from "./stages";
+import { WAVE_DURATION_MS, stageMul, clearBonusCoins } from "./stages";
 import { getStageWaves } from "./waves";
 import { bossForStage } from "./bosses";
 import { WEAPONS, updateOrbitals, updateHomingBullets } from "./weapons";
@@ -12,7 +12,7 @@ import { AUDIO_KEYS, preloadAllAudio, playSe } from "./audio";
 const PLAYER_BASE_SPEED = 220;
 const COIN_BASE_PICKUP_RADIUS = 60;
 const COIN_MAGNET_SPEED = 320;
-const ENEMY_BULLET_DAMAGE = 1;
+const ENEMY_BULLET_DAMAGE = 10;
 
 export default class MainScene extends Phaser.Scene {
   constructor() {
@@ -44,7 +44,7 @@ export default class MainScene extends Phaser.Scene {
     this.settings = this.registry.get("settings") || { screenShake: true };
 
     this.stageNumber = this.registry.get("stageNumber") || 1;
-    this.difficultyMul = difficultyMul(this.stageNumber);
+    this.stageMul = stageMul(this.stageNumber);
     this.phase = "wave";
     this.boss = null;
 
@@ -120,17 +120,45 @@ export default class MainScene extends Phaser.Scene {
     const small = { ...style, fontSize: "14px", color: "#94a3b8" };
     const top = this.registry.get("safeAreaTop") || 12;
     this.hudTop = top;
-    this.hpText = this.add.text(16, top, "", style).setDepth(2000);
-    this.coinText = this.add.text(16, top + 24, "", style).setDepth(2000);
+    // 左上の HP は小さめで補助表示
+    this.hpText = this.add.text(16, top, "", small).setDepth(2000);
+    this.coinText = this.add.text(16, top + 18, "", style).setDepth(2000);
     this.stageText = this.add.text(this.worldWidth / 2, top, `STAGE ${this.stageNumber}`, style)
       .setOrigin(0.5, 0).setDepth(2000);
-    // 時間表示は STAGE の下に 2 段で。HP の右、⏸ ボタンの下に来るので被らない。
     this.timeText = this.add.text(this.worldWidth / 2, top + 24, "", style).setOrigin(0.5, 0).setDepth(2000);
     this.bossHpBar = null;
     this.bossHpBarBg = null;
     this.bossLabel = this.add.text(this.worldWidth / 2, top + 48, "", small)
       .setOrigin(0.5, 0).setDepth(2000);
+
+    // プレイヤー追従 HP バー (自機の下に出る、画面下端に近いときは上に出す)
+    this.playerHpBarW = 36;
+    this.playerHpBarH = 4;
+    this.playerHpBarBg = this.add.rectangle(0, 0, this.playerHpBarW, this.playerHpBarH, 0x1f2937)
+      .setOrigin(0.5, 0).setDepth(1500);
+    this.playerHpBar = this.add.rectangle(0, 0, this.playerHpBarW, this.playerHpBarH, 0x22c55e)
+      .setOrigin(0, 0).setDepth(1501);
+
     this.refreshHud();
+  }
+
+  updatePlayerHpBar() {
+    if (!this.playerHpBar || !this.player) return;
+    const px = this.player.x;
+    // 通常は下、画面下端にいるときは上に
+    const offsetBelow = (this.player.displayHeight || 28) / 2 + 8;
+    const wantY = this.player.y + offsetBelow;
+    const fitsBelow = wantY + this.playerHpBarH < this.worldHeight - 4;
+    const py = fitsBelow
+      ? wantY
+      : this.player.y - (this.player.displayHeight || 28) / 2 - 8 - this.playerHpBarH;
+    this.playerHpBarBg.setPosition(px, py);
+    this.playerHpBar.setPosition(px - this.playerHpBarW / 2, py);
+    const ratio = Math.max(0, this.hp) / this.maxHp;
+    this.playerHpBar.width = this.playerHpBarW * ratio;
+    // 残量で色を変える
+    const color = ratio > 0.6 ? 0x22c55e : ratio > 0.3 ? 0xfde047 : 0xef4444;
+    this.playerHpBar.fillColor = color;
   }
 
   refreshHud() {
@@ -310,6 +338,7 @@ export default class MainScene extends Phaser.Scene {
     updateHomingBullets(this);
     updateOrbitals(this, delta);
     this.updateEnemyHpBars();
+    this.updatePlayerHpBar();
 
     this.refreshHud();
   }
@@ -452,8 +481,9 @@ export default class MainScene extends Phaser.Scene {
     this.enemies.add(boss);
     boss.isBoss = true;
     boss.typeId = "boss";
-    boss.hp = def.hp;
-    boss.hpMax = def.hp;
+    const bossHp = Math.round(def.hp * (this.stageMul.bossHp ?? 1));
+    boss.hp = bossHp;
+    boss.hpMax = bossHp;
     boss.speed = def.speed;
     boss.contactDamage = def.contactDamage;
     boss.coinDrop = 0; // クリアボーナスで別途付与
@@ -506,12 +536,13 @@ export default class MainScene extends Phaser.Scene {
   spawnEnemy(typeId, mods = {}) {
     const def = ENEMY_TYPES[typeId];
     if (!def) return;
-    const hpMul = (mods.hpMul ?? 1) * this.difficultyMul;
-    const speedMul = (mods.speedMul ?? 1) * (1 + (this.difficultyMul - 1) * 0.4);
-    const damageMul = (mods.damageMul ?? 1) * this.difficultyMul;
+    const hpMul = (mods.hpMul ?? 1) * this.stageMul.hp;
+    const speedMul = (mods.speedMul ?? 1) * this.stageMul.speed;
+    const damageMul = (mods.damageMul ?? 1) * this.stageMul.damage;
     const { x, y } = this.pickSpawnPositionInside(def.size);
     const enemy = this.add.rectangle(x, y, def.size, def.size, def.color);
     this.enemies.add(enemy);
+    if (enemy.body) enemy.body.setCollideWorldBounds(true);
     enemy.typeId = typeId;
     enemy.hp = Math.max(1, Math.round(def.hp * hpMul));
     enemy.hpMax = enemy.hp;
@@ -865,7 +896,7 @@ export default class MainScene extends Phaser.Scene {
   }
 
   applyDamage(rawDamage) {
-    const dmg = Math.max(0.1, rawDamage * (1 - this.stats.damageReduction));
+    const dmg = Math.max(1, rawDamage * (1 - this.stats.damageReduction));
     this.hp -= dmg;
     this.lastDamagedAt = this.time.now;
     this.regenAccum = 0;
