@@ -14,8 +14,8 @@
 
 import Phaser from "phaser";
 
-const STROKE_COLOR = 0x0b1220;
-const STROKE_WIDTH = 2;
+const STROKE_COLOR = 0x0a0612;
+const STROKE_WIDTH = 2.5;
 
 // points: (0..size, 0..size) 範囲で渡すこと。
 function polygonAt(scene, x, y, size, points, color) {

@@ -22,20 +22,50 @@ export default class MainScene extends Phaser.Scene {
 
   preload() {
     preloadAllAudio(this);
+    // レンガ床テクスチャ (48×20、深紫の溝)
+    const brick = this.make.graphics({ x: 0, y: 0, add: false });
+    brick.fillStyle(0x3a2a4a, 1);
+    brick.fillRect(0, 9, 48, 1.5);   // 横線 (上段)
+    brick.fillRect(0, 19, 48, 1.5);  // 横線 (下段)
+    brick.fillRect(23, 0, 1.5, 10);  // 縦線 (上段中央)
+    brick.fillRect(0,  10, 1.5, 10); // 縦線 (下段左端)
+    brick.fillRect(11, 10, 1.5, 10); // 縦線 (下段中央 1)
+    brick.fillRect(35, 10, 1.5, 10); // 縦線 (下段中央 2)
+    brick.fillRect(47, 10, 1.5, 10); // 縦線 (下段右端)
+    brick.generateTexture("brick-tile", 48, 20);
+    brick.destroy();
+
+    // CRT スキャンラインテクスチャ (1×3, 1px 線)
+    const scan = this.make.graphics({ x: 0, y: 0, add: false });
+    scan.fillStyle(0x000000, 1);
+    scan.fillRect(0, 0, 1, 1);
+    scan.generateTexture("scanline-tile", 1, 3);
+    scan.destroy();
   }
 
   create() {
-    this.cameras.main.setBackgroundColor("#0f172a");
+    this.cameras.main.setBackgroundColor("#1a0820");
     this.audio = { settings: this.registry.get("settings") || {} };
 
     this.worldWidth = this.scale.width;
     this.worldHeight = this.scale.height;
     this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
 
+    // 背景: レンガ床 (最背面)
+    this.brickFloor = this.add.tileSprite(0, 0, this.worldWidth, this.worldHeight, "brick-tile")
+      .setOrigin(0, 0).setDepth(-1000).setAlpha(0.4);
+
+    // CRT スキャンライン (最前面、半透明乗算)
+    this.scanlines = this.add.tileSprite(0, 0, this.worldWidth, this.worldHeight, "scanline-tile")
+      .setOrigin(0, 0).setDepth(9000).setAlpha(0.18).setScrollFactor(0)
+      .setBlendMode(Phaser.BlendModes.MULTIPLY);
+
     this.scale.on("resize", (gameSize) => {
       this.worldWidth = gameSize.width;
       this.worldHeight = gameSize.height;
       this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
+      if (this.brickFloor) this.brickFloor.setSize(this.worldWidth, this.worldHeight);
+      if (this.scanlines) this.scanlines.setSize(this.worldWidth, this.worldHeight);
       if (this.timeText) this.timeText.setX(this.worldWidth / 2);
       if (this.stageText) this.stageText.setX(this.worldWidth / 2);
     });
