@@ -156,13 +156,6 @@ export default function TitleScreen({ onStart }) {
         PRESS START
       </button>
 
-      {/* INSERT COIN */}
-      <div style={styles.coinRow}>
-        <span style={styles.coinDot} />
-        <span style={styles.coinText}>INSERT · COIN · TO · BEGIN</span>
-        <span style={styles.coinDot} />
-      </div>
-
       {/* High score / credits 風 */}
       <div style={styles.bottomRow}>
         <button type="button" onClick={() => setShowHelp(true)} style={styles.bottomLink}>
@@ -263,18 +256,6 @@ const styles = {
     padding: "8px 16px",
     zIndex: 10,
   },
-  coinRow: {
-    position: "absolute",
-    bottom: "calc(env(safe-area-inset-bottom) + 80px)",
-    left: 0, right: 0,
-    display: "flex", justifyContent: "center", alignItems: "center", gap: 14,
-    zIndex: 10,
-  },
-  coinDot: {
-    width: 14, height: 14, borderRadius: "50%", background: PAL.gold,
-    boxShadow: `0 0 10px ${PAL.gold}, inset -2px -2px 0 ${PAL.goldDark}`,
-  },
-  coinText: { fontFamily: PX_FONT, fontSize: 9, color: PAL.bone2, letterSpacing: 3 },
   bottomRow: {
     position: "absolute",
     bottom: "calc(env(safe-area-inset-bottom) + 32px)",
