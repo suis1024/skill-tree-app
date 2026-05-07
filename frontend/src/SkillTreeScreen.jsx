@@ -285,6 +285,7 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
       )}
       <button
         type="button"
+        data-no-se
         onClick={() => onUpgrade(skill.id, cost)}
         disabled={maxed || !affordable || busy}
         style={{
