@@ -154,9 +154,14 @@ async function ensureCtxRunning() {
   return ctx && ctx.state === "running";
 }
 
+// 並行実行された playTrack 同士の競合を防ぐため、最後に発行された要求のみを有効に
+// する。各 playTrack 開始時に token を発行し、await ごとに「自分の token が最新か」
+// 確認して無効ならその時点で抜ける。
+let playToken = 0;
+
 let resumeKey = null;
 if (typeof document !== "undefined") {
-  document.addEventListener("visibilitychange", async () => {
+  document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       resumeKey = currentKey;
       stopCurrentSource();
@@ -164,16 +169,12 @@ if (typeof document !== "undefined") {
       if (!resumeKey) return;
       const k = resumeKey;
       resumeKey = null;
-      currentKey = null; // 早期 return 回避
-      // 内部 state の整理 (壊れてたら ctx 作り直し)
-      await ensureCtxRunning();
+      currentKey = null;
       playTrack(k);
-      // 1 度で復帰しないことがあるので保険の再試行
+      // 1 度で復帰しないことがあるので保険の再試行 (まだ同じ key で source なし)
       setTimeout(() => {
-        if (currentKey === k && !currentSource) {
-          ensureCtxRunning().then(() => playTrack(k));
-        }
-      }, 350);
+        if (currentKey === k && !currentSource) playTrack(k);
+      }, 400);
     }
   });
 }
@@ -181,16 +182,19 @@ if (typeof document !== "undefined") {
 export async function playTrack(key) {
   if (!TRACKS[key]) return;
   if (currentKey === key && currentSource) return;
+  const myToken = ++playToken;
   currentKey = key;
   stopCurrentSource();
   await ensureCtxRunning();
+  if (myToken !== playToken) return; // 別の playTrack が走った
   let buf;
   try {
     buf = await getBuffer(key);
   } catch {
     return;
   }
-  if (currentKey !== key) return; // 待っている間に別 key へ
+  if (myToken !== playToken) return;
+  if (currentKey !== key) return;
   if (!buf) return;
   stopCurrentSource();
   currentSource = startSource(buf);
