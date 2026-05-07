@@ -11,7 +11,7 @@ export const CATEGORIES = {
 // レイアウト: 中央に「攻撃」、左に「武器」、右上に「防御」、右下に「経済」を配置。
 // 縦は y、横は x。原点は左上。
 
-export const TREE_VIEWBOX = { width: 1000, height: 900 };
+export const TREE_VIEWBOX = { width: 1000, height: 600 };
 
 // requires: 親スキルが指定 level 以上のときだけ取得可能。
 // アンロック系 (maxLevel: 1) は「装備武器の解放」を表す。
@@ -105,6 +105,79 @@ export const SKILLS = [
   { id: "eco_lucky",  category: "economy", name: "幸運コイン",       maxLevel: 5, desc: "敵が金コイン (×3) を落とす確率 +5% / Lv",
     requires: { id: "eco_magnet", level: 2 }, pos: { x: 880, y: 660 } },
 ];
+
+// === 自動グリッドレイアウト ===
+// SKILLS で手書きしている pos は historical な値。表示時は以下のロジックで
+// カテゴリ別に整列したグリッド座標で上書きする。
+//
+// レイアウト:
+//   横方向: カテゴリ (左から weapon / attack / defense / economy)
+//   縦方向: 依存深さ (tier) = ルートから何段下か
+//   同カテゴリ・同 tier 内では子要素を横並びにする (中央寄せ)
+//
+// グリッドは GRID_X * GRID_Y のセル単位で計算し、TREE_VIEWBOX に収まるよう
+// セルサイズを決める。
+// カテゴリごとの幅 (合計が TREE_VIEWBOX.width に揃う)
+const CATEGORY_LAYOUT = [
+  { id: "weapon",  weight: 2.4 },
+  { id: "attack",  weight: 1.0 },
+  { id: "defense", weight: 1.2 },
+  { id: "economy", weight: 1.2 },
+];
+const ROW_H = 100;
+const TIER_TOP = 80;
+
+function computeTier(skill, byId, memo) {
+  if (memo.has(skill.id)) return memo.get(skill.id);
+  if (!skill.requires) {
+    memo.set(skill.id, 0);
+    return 0;
+  }
+  const parent = byId[skill.requires.id];
+  const t = parent ? computeTier(parent, byId, memo) + 1 : 0;
+  memo.set(skill.id, t);
+  return t;
+}
+
+function layoutSkills(skills) {
+  const byId = Object.fromEntries(skills.map((s) => [s.id, s]));
+  const memo = new Map();
+  for (const s of skills) computeTier(s, byId, memo);
+
+  // カテゴリ別 + tier 別にグループ化
+  const groups = {}; // category -> tier -> skill[]
+  for (const s of skills) {
+    const t = memo.get(s.id);
+    if (!groups[s.category]) groups[s.category] = {};
+    if (!groups[s.category][t]) groups[s.category][t] = [];
+    groups[s.category][t].push(s);
+  }
+
+  // カテゴリ幅を weight で按分
+  const totalWeight = CATEGORY_LAYOUT.reduce((s, c) => s + c.weight, 0);
+  let cursorX = 0;
+  for (const cat of CATEGORY_LAYOUT) {
+    const colW = (TREE_VIEWBOX.width * cat.weight) / totalWeight;
+    const colLeft = cursorX;
+    cursorX += colW;
+    const tiers = groups[cat.id] || {};
+    for (const tierKey of Object.keys(tiers)) {
+      const tier = Number(tierKey);
+      const arr = tiers[tier];
+      const y = TIER_TOP + tier * ROW_H;
+      const n = arr.length;
+      const cellW = colW / Math.max(1, n);
+      arr.forEach((s, i) => {
+        s.pos = {
+          x: colLeft + cellW * (i + 0.5),
+          y,
+        };
+      });
+    }
+  }
+}
+
+layoutSkills(SKILLS);
 
 export const SKILL_BY_ID = Object.fromEntries(SKILLS.map((s) => [s.id, s]));
 
