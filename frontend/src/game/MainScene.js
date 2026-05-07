@@ -314,6 +314,16 @@ export default class MainScene extends Phaser.Scene {
       }
     });
 
+    // 自機弾も画面外に出たら即座に消す (collision 判定対象を減らす)。
+    // orbital と homing は射程ロジックが別なのでスキップ。
+    this.bullets.children.iterate((b) => {
+      if (!b || !b.active) return;
+      if (b.isOrbital || b.homing) return;
+      if (b.x < -20 || b.x > this.worldWidth + 20 || b.y < -20 || b.y > this.worldHeight + 20) {
+        b.destroy();
+      }
+    });
+
     if (this.phase === "wave") {
       if (this.elapsedMs >= WAVE_DURATION_MS) {
         this.startBossPhase();
@@ -980,7 +990,11 @@ export function makeGameConfig(parent) {
     },
     physics: {
       default: "arcade",
-      arcade: { gravity: { y: 0 } },
+      arcade: {
+        gravity: { y: 0 },
+        useTree: true,
+        maxEntries: 16,
+      },
     },
     fps: {
       target: 60,

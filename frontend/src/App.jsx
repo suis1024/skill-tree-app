@@ -55,6 +55,7 @@ export default function App() {
       setClearedStages(res.cleared_stages);
     } finally {
       setBusy(false);
+      startBgm();
     }
   };
 
@@ -93,7 +94,6 @@ export default function App() {
   const handleBackToTree = () => setScreen(SCREEN.TREE);
 
   const handleReset = async () => {
-    if (!confirm("全スキルをリセットして、支払ったコインを全額返却します。よろしいですか？")) return;
     setBusy(true);
     try {
       const res = await resetSkills(userId);
@@ -103,6 +103,8 @@ export default function App() {
       alert(e.message);
     } finally {
       setBusy(false);
+      // iOS WebView の confirm/alert 後に BGM が一時停止することがあるので再 try
+      startBgm();
     }
   };
 
