@@ -73,12 +73,12 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
       <div style={styles.treeWrap}>
         <TransformWrapper
           initialScale={1}
-          minScale={0.5}
-          maxScale={4}
-          centerOnInit
-          doubleClick={{ mode: "reset" }}
+          minScale={0.6}
+          maxScale={3}
+          limitToBounds={false}
+          doubleClick={{ disabled: true }}
           wheel={{ step: 0.1 }}
-          panning={{ velocityDisabled: false }}
+          panning={{ velocityDisabled: true }}
           pinch={{ step: 5 }}
         >
         <TransformComponent
