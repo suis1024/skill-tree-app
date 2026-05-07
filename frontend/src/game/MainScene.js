@@ -59,7 +59,8 @@ export default class MainScene extends Phaser.Scene {
     this.invincibleUntil = 0;
     this.reviveAvailable = this.stats.hasRevive;
 
-    this.player = this.add.rectangle(this.worldWidth / 2, this.worldHeight / 2, 28, 28, 0x60a5fa);
+    // 自機: 矢じり型の三角。rotation は aimDir に追従。
+    this.player = makeEnemyShape(this, this.worldWidth / 2, this.worldHeight / 2, 28, 0x38bdf8, "triangle");
     this.physics.add.existing(this.player);
     setCircleBody(this.player, 28);
     this.player.body.setCollideWorldBounds(true);
@@ -244,6 +245,7 @@ export default class MainScene extends Phaser.Scene {
     } else {
       body.setVelocity(0, 0);
     }
+    this.player.rotation = Math.atan2(this.aimDir.y, this.aimDir.x);
 
     // flocker (grunt) の群れボーナス事前計算: 半径 80px 以内の同種数を数える。
     // 仲間 3 体以上で +20% 速度、5 体以上で +35% にスケール。
