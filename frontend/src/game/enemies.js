@@ -14,6 +14,8 @@ export const ENEMY_TYPES = {
     canShoot: false,
     shape: "rect",
     isFlocker: true, // 群れボーナス対象
+    isWanderer: true, // 通常は壁反射の直進、近づいたら追跡に切替
+    wanderHomingRange: 200,
   },
   swift: {
     color: 0x60a5fa,
@@ -48,6 +50,7 @@ export const ENEMY_TYPES = {
     shootIntervalMs: 1800,
     shotSpeed: 220,
     shape: "diamond",
+    alwaysSpin: true, // 見映え用にゆっくり自転
   },
   bouncer: {
     color: 0x14b8a6,

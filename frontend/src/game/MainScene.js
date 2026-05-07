@@ -330,6 +330,8 @@ export default class MainScene extends Phaser.Scene {
           enemy.nextShotAt = this.time.now + enemy.shootIntervalMs;
           this.fireEnemyBullet(enemy, nx, ny);
         }
+      } else if (enemy.isWanderer) {
+        this.updateWanderer(enemy, nx, ny, dist, effSpeed);
       } else {
         enemy.body.setVelocity(nx * effSpeed, ny * effSpeed);
       }
@@ -612,10 +614,18 @@ export default class MainScene extends Phaser.Scene {
     enemy.aimByVelocity = !!def.aimByVelocity;
     enemy.isFlocker = !!def.isFlocker;
     enemy.leadAim = !!def.leadAim;
-    if (def.shape === "rect") {
-      // grunt: ランダム方向に一定速度で自転
+    enemy.isWanderer = !!def.isWanderer;
+    enemy.wanderHomingRange = def.wanderHomingRange || 200;
+    if (def.shape === "rect" || def.alwaysSpin) {
+      // ランダム方向に一定速度で自転 (rect 敵 + alwaysSpin 指定の敵)
       const sign = Math.random() < 0.5 ? -1 : 1;
       enemy.spinRate = sign * Phaser.Math.FloatBetween(0.01, 0.03);
+    }
+    if (def.isWanderer) {
+      // 初期方向: ランダム。壁反射しつつ進む
+      const ang = Math.random() * Math.PI * 2;
+      enemy.wanderVx = Math.cos(ang);
+      enemy.wanderVy = Math.sin(ang);
     }
     enemy.hp = Math.max(1, Math.round(def.hp * hpMul));
     enemy.hpMax = enemy.hp;
@@ -665,6 +675,20 @@ export default class MainScene extends Phaser.Scene {
     if (enemy.x >= this.worldWidth - half && enemy.bounceVx > 0) enemy.bounceVx = -enemy.bounceVx;
     if (enemy.y <= half && enemy.bounceVy < 0) enemy.bounceVy = -enemy.bounceVy;
     if (enemy.y >= this.worldHeight - half && enemy.bounceVy > 0) enemy.bounceVy = -enemy.bounceVy;
+  }
+
+  // wanderer (grunt): 普段は壁反射の直進、プレイヤーが範囲内なら追跡。
+  updateWanderer(enemy, nx, ny, dist, effSpeed) {
+    if (dist <= enemy.wanderHomingRange) {
+      enemy.body.setVelocity(nx * effSpeed, ny * effSpeed);
+      return;
+    }
+    enemy.body.setVelocity(enemy.wanderVx * effSpeed, enemy.wanderVy * effSpeed);
+    const half = (enemy.displayWidth || 24) / 2;
+    if (enemy.x <= half && enemy.wanderVx < 0) enemy.wanderVx = -enemy.wanderVx;
+    if (enemy.x >= this.worldWidth - half && enemy.wanderVx > 0) enemy.wanderVx = -enemy.wanderVx;
+    if (enemy.y <= half && enemy.wanderVy < 0) enemy.wanderVy = -enemy.wanderVy;
+    if (enemy.y >= this.worldHeight - half && enemy.wanderVy > 0) enemy.wanderVy = -enemy.wanderVy;
   }
 
   updateTurret(enemy) {
