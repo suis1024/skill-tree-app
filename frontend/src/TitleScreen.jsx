@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { startBgm } from "./bgm";
+import { PlayIcon, CloseIcon } from "./icons";
 
 export default function TitleScreen({ onStart }) {
   const [showHelp, setShowHelp] = useState(false);
@@ -19,7 +20,8 @@ export default function TitleScreen({ onStart }) {
         </div>
         <p style={styles.subtitle}>全方位シューティング × ローグライト</p>
         <button style={styles.button} onClick={onStart}>
-          <span style={styles.buttonInner}>▶ 開始</span>
+          <PlayIcon width={18} height={18} />
+          <span>開始</span>
         </button>
         <button style={styles.subButton} onClick={() => setShowHelp(true)}>あそびかた</button>
       </div>
@@ -72,7 +74,9 @@ function HelpModal({ onClose }) {
       <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div style={styles.modalHeader}>
           <h2 style={{ margin: 0, fontSize: 18 }}>あそびかた</h2>
-          <button style={styles.closeBtn} onClick={onClose} aria-label="閉じる">×</button>
+          <button style={styles.closeBtn} onClick={onClose} aria-label="閉じる">
+            <CloseIcon width={18} height={18} />
+          </button>
         </div>
         <Section title="操作">
           <p>画面を<b>ドラッグ</b>して移動。武器は<b>自動発射</b>。</p>
@@ -145,15 +149,15 @@ const styles = {
     background: "linear-gradient(180deg, #22c55e 0%, #15803d 100%)",
     color: "#052e16",
     border: "none",
-    padding: "16px 48px",
+    padding: "16px 44px",
     borderRadius: 28,
     fontSize: 18,
     fontWeight: 800,
     letterSpacing: 1,
     cursor: "pointer",
     boxShadow: "0 6px 0 #14532d, 0 10px 24px rgba(34,197,94,0.35)",
+    display: "inline-flex", alignItems: "center", gap: 10,
   },
-  buttonInner: { display: "inline-block" },
   subButton: {
     display: "block", margin: "24px auto 0",
     background: "rgba(51,65,85,0.4)", color: "#cbd5e1",
@@ -181,7 +185,8 @@ const styles = {
   },
   closeBtn: {
     background: "transparent", color: "#cbd5e1", border: "none",
-    fontSize: 24, lineHeight: 1, cursor: "pointer",
+    cursor: "pointer", padding: 4, lineHeight: 0,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
   },
   section: { marginTop: 14 },
   sectionTitle: {

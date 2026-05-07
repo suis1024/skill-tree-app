@@ -3,6 +3,7 @@
 // HTML モーダル (ConfirmModal) を使うこと。
 
 import { useState } from "react";
+import { ResetIcon, WarnIcon, CoinIcon, UnlockIcon, BackIcon } from "./icons";
 
 export default function SettingsScreen({
   settings,
@@ -12,7 +13,7 @@ export default function SettingsScreen({
   onCheatAddCoins,
   onCheatUnlockAllStages,
   onBack,
-  backLabel = "← 戻る",
+  backLabel = "戻る",
   busy,
 }) {
   const [working, setWorking] = useState(false);
@@ -53,7 +54,10 @@ export default function SettingsScreen({
   return (
     <div style={styles.wrap}>
       <header style={styles.header}>
-        <button type="button" onClick={onBack} style={styles.backButton}>{backLabel}</button>
+        <button type="button" onClick={onBack} style={styles.backButton}>
+          <BackIcon width={16} height={16} />
+          <span>{backLabel}</span>
+        </button>
         <h2 style={{ margin: 0 }}>設定</h2>
         <span style={{ width: 100 }} />
       </header>
@@ -109,13 +113,15 @@ export default function SettingsScreen({
 
       <Section title="進捗管理">
         <button type="button" onClick={handleResetSkills} disabled={disabled} style={styles.warnButton}>
-          ⟲ スキルをリセット (コイン全額返却)
+          <ResetIcon width={16} height={16} />
+          <span>スキルをリセット (コイン全額返却)</span>
         </button>
         <p style={styles.note}>
           すべてのスキルを Lv0 に戻します。支払ったコインは全額戻ります。
         </p>
         <button type="button" onClick={handleWipe} disabled={disabled} style={styles.dangerButton}>
-          ⚠ 進捗をすべて消去
+          <WarnIcon width={16} height={16} />
+          <span>進捗をすべて消去</span>
         </button>
         <p style={styles.note}>
           コイン・スキル・クリア状況を全消去。完全に最初からやり直す場合のみ。
@@ -130,7 +136,8 @@ export default function SettingsScreen({
           disabled={disabled || !onCheatAddCoins}
           style={styles.cheatButton}
         >
-          💰 コイン +1000
+          <CoinIcon width={16} height={16} />
+          <span>コイン +1000</span>
         </button>
         <button
           type="button"
@@ -138,7 +145,8 @@ export default function SettingsScreen({
           disabled={disabled || !onCheatUnlockAllStages}
           style={styles.cheatButton}
         >
-          🔓 全ステージ解放
+          <UnlockIcon width={16} height={16} />
+          <span>全ステージ解放</span>
         </button>
       </Section>
 
@@ -236,8 +244,9 @@ const styles = {
   },
   backButton: {
     background: "#334155", color: "#e2e8f0", border: "none",
-    padding: "8px 14px", borderRadius: 6, fontSize: 14, cursor: "pointer",
-    minWidth: 100,
+    padding: "8px 12px", borderRadius: 18, fontSize: 14, cursor: "pointer",
+    display: "inline-flex", alignItems: "center", gap: 4,
+    flexShrink: 0,
   },
   section: {
     background: "#1e293b", border: "1px solid #334155", borderRadius: 8,
@@ -255,14 +264,17 @@ const styles = {
   warnButton: {
     width: "100%", background: "#475569", color: "#e2e8f0", border: "none",
     padding: "10px", borderRadius: 6, fontSize: 14, cursor: "pointer", marginTop: 4,
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
   },
   dangerButton: {
     width: "100%", background: "#7f1d1d", color: "#fecaca", border: "none",
     padding: "10px", borderRadius: 6, fontSize: 14, cursor: "pointer", marginTop: 12,
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
   },
   cheatButton: {
     width: "100%", background: "#3730a3", color: "#e0e7ff", border: "none",
     padding: "10px", borderRadius: 6, fontSize: 14, cursor: "pointer", marginTop: 8,
+    display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
   },
   note: { fontSize: 11, color: "#94a3b8", margin: "6px 0 0", lineHeight: 1.5 },
   modalOverlay: {

@@ -39,9 +39,8 @@ function firePistolFan(scene, baseAngle, count) {
     const angle = count === 1 ? baseAngle : start + (spread * i) / (count - 1);
     const isCrit = Math.random() < (stats.pistolCritChance || 0);
     const damage = baseDamage * (isCrit ? 2 : 1);
-    const color = isCrit ? 0xfb923c : 0xfacc15;
-    const size = isCrit ? 10 : 8;
-    const bullet = scene.add.rectangle(scene.player.x, scene.player.y, size, size, color);
+    // クリ弾も見た目は通常弾と同じ (当たった瞬間のダメージ表示で判別される)
+    const bullet = scene.add.rectangle(scene.player.x, scene.player.y, 8, 8, 0xfacc15);
     scene.bullets.add(bullet);
     bullet.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
     bullet.damage = damage;

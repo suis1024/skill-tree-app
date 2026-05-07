@@ -1,4 +1,5 @@
 import { TOTAL_STAGES } from "./game/stages";
+import { BackIcon, CheckIcon, LockIcon } from "./icons";
 
 export default function StageSelectScreen({ clearedStages, onSelect, onBack }) {
   const cleared = new Set(clearedStages);
@@ -7,7 +8,10 @@ export default function StageSelectScreen({ clearedStages, onSelect, onBack }) {
   return (
     <div style={styles.wrap}>
       <header style={styles.header}>
-        <button type="button" onClick={onBack} style={styles.backButton}>← 戻る</button>
+        <button type="button" onClick={onBack} style={styles.backButton}>
+          <BackIcon width={16} height={16} />
+          <span>戻る</span>
+        </button>
         <h2 style={styles.headerTitle}>ステージ選択</h2>
         <span style={{ width: 64, flexShrink: 0 }} />
       </header>
@@ -35,7 +39,16 @@ export default function StageSelectScreen({ clearedStages, onSelect, onBack }) {
               <div style={styles.cardLabel}>STAGE</div>
               <div style={styles.cardNum}>{n}</div>
               <div style={styles.cardStatus}>
-                {isLocked ? "🔒" : isCleared ? "✓ CLEAR" : "未クリア"}
+                {isLocked ? (
+                  <LockIcon width={16} height={16} />
+                ) : isCleared ? (
+                  <span style={styles.statusInner}>
+                    <CheckIcon width={14} height={14} />
+                    <span>CLEAR</span>
+                  </span>
+                ) : (
+                  "未クリア"
+                )}
               </div>
             </button>
           );
@@ -67,10 +80,10 @@ const styles = {
   },
   backButton: {
     background: "#334155", color: "#e2e8f0", border: "none",
-    padding: "8px 14px", borderRadius: 6, fontSize: 14, cursor: "pointer",
-    minWidth: 64,
+    padding: "8px 12px", borderRadius: 18, fontSize: 14, cursor: "pointer",
     flexShrink: 0,
     whiteSpace: "nowrap",
+    display: "inline-flex", alignItems: "center", gap: 4,
   },
   grid: {
     display: "grid",
@@ -89,6 +102,7 @@ const styles = {
   },
   cardLabel: { fontSize: 10, color: "#94a3b8", letterSpacing: 1 },
   cardNum: { fontSize: 36, fontWeight: 700, lineHeight: 1.1, margin: "4px 0" },
-  cardStatus: { fontSize: 12, color: "#cbd5e1" },
+  cardStatus: { fontSize: 12, color: "#cbd5e1", display: "flex", justifyContent: "center", alignItems: "center", minHeight: 16 },
+  statusInner: { display: "inline-flex", alignItems: "center", gap: 4 },
   note: { textAlign: "center", color: "#64748b", fontSize: 12, marginTop: 16 },
 };

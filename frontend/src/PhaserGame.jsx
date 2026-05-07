@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { makeGameConfig } from "./game/MainScene";
 import { readSettings, writeSettings } from "./settings";
 import { setBgmEnabled, setBgmVolume } from "./bgm";
+import { PauseIcon, BossIcon } from "./icons";
 
 export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, onAbort }) {
   const containerRef = useRef(null);
@@ -93,7 +94,7 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
           aria-label="メニュー"
           style={pauseBtnStyle}
         >
-          ⏸
+          <PauseIcon width={22} height={22} />
         </button>
       )}
       {paused && (
@@ -127,7 +128,10 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
 
             <div style={settingsBlock}>
               <h3 style={settingsTitle}>開発者</h3>
-              <button style={cheatBtn} onClick={handleSummonBoss}>👹 ボスを呼ぶ</button>
+              <button style={cheatBtn} onClick={handleSummonBoss}>
+                <BossIcon width={16} height={16} />
+                <span>ボスを呼ぶ</span>
+              </button>
             </div>
           </div>
         </div>
@@ -203,7 +207,10 @@ const secondaryBtn = {
 };
 
 const cheatBtn = {
-  display: "block",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 8,
   width: "100%",
   background: "#3730a3",
   color: "#e0e7ff",

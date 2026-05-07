@@ -3,6 +3,7 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import {
   SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, SECTION_HEADERS, nextCost, isUnlockable,
 } from "./game/skills";
+import { GearIcon, BackIcon, CoinIcon, PlayIcon, CloseIcon, LockIcon } from "./icons";
 
 export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onBackToTitle, onOpenSettings, busy }) {
   const [selectedId, setSelectedId] = useState(null);
@@ -21,16 +22,21 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
     <div style={styles.wrap}>
       <header style={styles.headerTop}>
         {onBackToTitle && (
-          <button type="button" onClick={onBackToTitle} style={styles.backButton}>← 戻る</button>
+          <button type="button" onClick={onBackToTitle} style={styles.backButton} aria-label="戻る">
+            <BackIcon width={18} height={18} />
+            <span style={styles.backLabel}>戻る</span>
+          </button>
         )}
         <h2 style={styles.headerTitle}>スキルツリー</h2>
         {onOpenSettings && (
-          <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.iconButton}>⚙</button>
+          <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.iconButton}>
+            <GearIcon width={20} height={20} />
+          </button>
         )}
       </header>
       <div style={styles.headerBottom}>
         <div style={styles.coinPill}>
-          <span style={styles.coinIcon}>◉</span>
+          <CoinIcon width={16} height={16} />
           <strong style={styles.coinValue}>{coins.toLocaleString()}</strong>
         </div>
         <button
@@ -39,7 +45,8 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
           disabled={busy}
           style={styles.startButton}
         >
-          ステージ選択 ▶
+          <span>ステージ選択</span>
+          <PlayIcon width={14} height={14} />
         </button>
       </div>
 
@@ -141,13 +148,17 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
                   />
                 )}
                 {!unlockable && (
-                  <text
-                    x={s.pos.x}
-                    y={s.pos.y + 6}
-                    textAnchor="middle"
-                    fontSize={18}
-                    fill="#cbd5e1"
-                  >🔒</text>
+                  <g
+                    transform={`translate(${s.pos.x - 8}, ${s.pos.y - 8})`}
+                    fill="none"
+                    stroke="#cbd5e1"
+                    strokeWidth={1.6}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <rect x="2" y="7" width="12" height="8" rx="1.5" />
+                    <path d="M4.5 7 V4.5 a3.5 3.5 0 0 1 7 0 V7" />
+                  </g>
                 )}
                 {unlockable && (
                   <text
@@ -218,13 +229,16 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
           <span style={{ ...styles.catTag, background: cat.color, color: "#0f172a" }}>{cat.label}</span>
           <strong style={{ marginLeft: 8, fontSize: 16 }}>{fullName}</strong>
         </div>
-        <button onClick={onClose} style={styles.closeBtn}>×</button>
+        <button onClick={onClose} style={styles.closeBtn} aria-label="閉じる">
+          <CloseIcon width={18} height={18} />
+        </button>
       </div>
       <p style={styles.detailDesc}>{skill.desc}</p>
       <p style={styles.detailLine}>レベル: <strong>{lv} / {skill.maxLevel}</strong></p>
       {reqText && (
-        <p style={{ ...styles.detailLine, color: unlockable ? "#86efac" : "#fda4af" }}>
-          {unlockable ? "✓ " : "🔒 "}{reqText}
+        <p style={{ ...styles.detailLine, color: unlockable ? "#86efac" : "#fda4af", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <LockIcon width={14} height={14} />
+          {reqText}
         </p>
       )}
       <button
@@ -237,7 +251,7 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
           cursor: maxed || !affordable || busy ? "not-allowed" : "pointer",
         }}
       >
-        {maxed ? "MAX" : !unlockable ? "🔒 LOCKED" : `強化 (${cost} コイン)`}
+        {maxed ? "MAX" : !unlockable ? "LOCKED" : `強化 (${cost} コイン)`}
       </button>
     </div>
   );
@@ -266,9 +280,11 @@ const styles = {
   },
   backButton: {
     background: "rgba(51,65,85,0.7)", color: "#e2e8f0", border: "1px solid #475569",
-    padding: "8px 14px", borderRadius: 18, fontSize: 13, cursor: "pointer",
+    padding: "8px 12px", borderRadius: 18, fontSize: 13, cursor: "pointer",
     flexShrink: 0, whiteSpace: "nowrap",
+    display: "inline-flex", alignItems: "center", gap: 4,
   },
+  backLabel: { fontSize: 13 },
   iconButton: {
     background: "rgba(51,65,85,0.7)", color: "#e2e8f0", border: "1px solid #475569",
     width: 36, height: 36, borderRadius: 18, fontSize: 18, cursor: "pointer",
@@ -284,19 +300,19 @@ const styles = {
     boxShadow: "0 2px 8px rgba(251,191,36,0.3), inset 0 1px 0 rgba(255,255,255,0.4)",
     fontWeight: 700,
   },
-  coinIcon: { fontSize: 14, color: "#7c2d12" },
   coinValue: { fontSize: 18, color: "#451a03" },
   startButton: {
     background: "linear-gradient(135deg, #16a34a, #22c55e)",
     color: "#052e16",
     border: "none",
-    padding: "10px 22px",
+    padding: "10px 18px",
     fontSize: 15,
     fontWeight: 700,
     borderRadius: 22,
     cursor: "pointer",
     boxShadow: "0 4px 12px rgba(34,197,94,0.4)",
     flexShrink: 0,
+    display: "inline-flex", alignItems: "center", gap: 6,
   },
   treeWrap: {
     width: "100%",
@@ -324,7 +340,11 @@ const styles = {
   },
   detailHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 },
   catTag: { padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 700 },
-  closeBtn: { background: "transparent", color: "#cbd5e1", border: "none", fontSize: 22, cursor: "pointer", lineHeight: 1 },
+  closeBtn: {
+    background: "transparent", color: "#cbd5e1", border: "none",
+    cursor: "pointer", padding: 4, lineHeight: 0,
+    display: "inline-flex", alignItems: "center", justifyContent: "center",
+  },
   detailDesc: { fontSize: 13, color: "#cbd5e1", margin: "4px 0 8px" },
   detailLine: { fontSize: 13, margin: "4px 0" },
   upgradeButton: {

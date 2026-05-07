@@ -187,7 +187,7 @@ export default function App() {
         onCheatAddCoins={handleCheatAddCoins}
         onCheatUnlockAllStages={handleCheatUnlockAllStages}
         onBack={() => setScreen(SCREEN.TREE)}
-        backLabel="← スキルツリー"
+        backLabel="スキルツリー"
         busy={busy}
       />
     );
