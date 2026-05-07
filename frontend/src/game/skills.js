@@ -14,15 +14,15 @@ export const TREE_VIEWBOX = { width: 480, height: 1800 };
 // pos は SVG 上の座標 (layoutSkills が上書き)。
 export const SKILLS = [
   // ===== 武器系 =====
-  // 武器解放 (ピストルは初期から使える)
+  // 武器解放: すべてピストル直下 (= 最初からどれでも買える)
   { id: "wpn_unlock_bomb",    category: "weapon", name: "爆弾",       maxLevel: 1, desc: "近くの敵に放物線で爆弾を投げる",
-    costOverrides: [40] },
+    costOverrides: [40],  requires: { id: "pistol_unlock", level: 1 } },
   { id: "wpn_unlock_thunder", category: "weapon", name: "サンダー",   maxLevel: 1, desc: "近くの敵に落雷、3 体まで連鎖",
-    costOverrides: [80], requires: { id: "wpn_unlock_bomb", level: 1 } },
+    costOverrides: [80],  requires: { id: "pistol_unlock", level: 1 } },
   { id: "wpn_unlock_homing",  category: "weapon", name: "ホーミング", maxLevel: 1, desc: "敵を追尾する弾を発射",
-    costOverrides: [60] },
+    costOverrides: [60],  requires: { id: "pistol_unlock", level: 1 } },
   { id: "wpn_unlock_orbital", category: "weapon", name: "オービタル", maxLevel: 1, desc: "周囲を回る弾で接触ダメージ",
-    costOverrides: [100], requires: { id: "wpn_unlock_homing", level: 1 } },
+    costOverrides: [100], requires: { id: "pistol_unlock", level: 1 } },
 
   // ピストル列 (初期武器: ヘッダーに「ピストル」を表示するためのダミー解放スキル)
   { id: "pistol_unlock", category: "weapon", name: "ピストル", maxLevel: 1, desc: "初期装備。常に発射する基本武器",
@@ -147,16 +147,24 @@ const WEAPON_COLUMNS = [
 
 function layoutWeaponColumns(skills, byId, startY) {
   // 各列の子は「ID prefix 一致 (= その武器に属する)」かつ「ヘッダー以外」で取る。
-  // 依存深さ (tier) で並べる (浅い順 = 上から)。
-  const memo = new Map();
-  for (const s of skills) computeTier(s, byId, memo);
-
+  // 並びはソース順 (SKILLS 配列の登場順) を尊重。
   const columns = WEAPON_COLUMNS.map((col) => {
-    const children = skills
-      .filter((s) => s.id !== col.headerId && s.id.startsWith(col.prefix))
-      .sort((a, b) => (memo.get(a.id) ?? 0) - (memo.get(b.id) ?? 0));
+    const children = skills.filter(
+      (s) => s.id !== col.headerId && s.id.startsWith(col.prefix),
+    );
     return { ...col, header: byId[col.headerId], children };
   });
+
+  // 列内の縦依存を自動生成: 列 i 番目の子は (i-1 番目) Lv1 を要求。
+  // 先頭の子はヘッダー (= 武器解放) Lv1 を要求。
+  for (const col of columns) {
+    let prevId = col.headerId;
+    for (const c of col.children) {
+      c.requires = { id: prevId, level: 1 };
+      prevId = c.id;
+    }
+  }
+
   const ncol = columns.length;
   const colW = TREE_VIEWBOX.width / ncol;
   let maxRowsBelow = 0;
