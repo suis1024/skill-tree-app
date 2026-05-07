@@ -27,13 +27,11 @@ function findNearestEnemy(scene, fromX, fromY) {
   return best;
 }
 
-// ピストル: 移動方向に扇撃ち。bulletCount スキル (atk_multi) で扇が広がる。
-function firePistol(scene) {
-  playSe(scene, AUDIO_KEYS.sePistol.key, { volume: 0.18, minIntervalMs: 80 });
+// 扇撃ちのヘルパー: 指定方向に count 発を spread (rad) で扇状に発射。
+function firePistolFan(scene, baseAngle, count) {
+  if (count <= 0) return;
   const stats = scene.stats;
-  const count = stats.bulletCount;
   const spread = (count - 1) * 0.18;
-  const baseAngle = Math.atan2(scene.aimDir.y, scene.aimDir.x);
   const start = baseAngle - spread / 2;
   const baseDamage = 10 * stats.damageMul;
   const speed = 500;
@@ -50,6 +48,18 @@ function firePistol(scene) {
     bullet.isCrit = isCrit;
     bullet.pierceLeft = stats.pierce;
     scene.time.delayedCall(BULLET_LIFETIME_MS, () => bullet.destroy());
+  }
+}
+
+// ピストル: 移動方向に扇撃ち。bulletCount スキル (atk_multi) で扇が広がる。
+// atk_back スキルで後方にも扇撃ち。
+function firePistol(scene) {
+  playSe(scene, AUDIO_KEYS.sePistol.key, { volume: 0.18, minIntervalMs: 80 });
+  const stats = scene.stats;
+  const baseAngle = Math.atan2(scene.aimDir.y, scene.aimDir.x);
+  firePistolFan(scene, baseAngle, stats.bulletCount);
+  if (stats.backBulletCount > 0) {
+    firePistolFan(scene, baseAngle + Math.PI, stats.backBulletCount);
   }
 }
 

@@ -22,8 +22,10 @@ export const SKILLS = [
     pos: { x: 500, y: 460 } },
   { id: "atk_pierce", category: "attack", name: "弾の貫通",       maxLevel: 5, desc: "ピストル弾の貫通敵数 +1 / Lv",
     requires: { id: "atk_power", level: 1 }, pos: { x: 380, y: 380 } },
-  { id: "atk_multi",  category: "attack", name: "ピストル弾数",   maxLevel: 5, desc: "ピストル 1 発の弾数 +1 / Lv (扇状に拡散)",
+  { id: "atk_multi",  category: "attack", name: "ピストル弾数",   maxLevel: 3, desc: "ピストル 1 発の弾数 +1 / Lv (扇状に拡散、最大 4)",
     requires: { id: "atk_pierce", level: 1 }, pos: { x: 280, y: 300 } },
+  { id: "atk_back",   category: "attack", name: "後方発射",       maxLevel: 3, desc: "後方にも弾を撃つ。Lv1=1本 / Lv2=3本 / Lv3=5本 (扇)",
+    requires: { id: "atk_multi", level: 3 }, pos: { x: 200, y: 220 } },
 
   // ===== 武器系 (左側) =====
   { id: "wpn_unlock_bomb",    category: "weapon", name: "爆弾",       maxLevel: 1, desc: "近くの敵に放物線で爆弾を投げる",
@@ -145,6 +147,7 @@ export function computeStats(skillLevels) {
     pistolCritChance: lv("pistol_crit") * 0.10,
     pierce:           lv("atk_pierce"),
     bulletCount:      1 + lv("atk_multi"),
+    backBulletCount:  [0, 1, 3, 5][lv("atk_back")] || 0,
     // 武器ごとの発射間隔倍率 (1 を分母にして使う想定: delay = base / mul)
     weaponSpeedMul: {
       pistol:  1 + lv("pistol_speed")  * 0.20,

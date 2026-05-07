@@ -66,15 +66,19 @@ function writeClearedStages(arr) {
 // 廃止された旧スキル ID。所持していたら自動でコイン全額返金 + 削除する。
 const RETIRED_SKILL_IDS = ["atk_speed", "atk_crit"];
 
-// 旧スキル ID の lv コストテーブル (旧定義時の COST_TABLE = 現行と同じ)。
+// maxLevel が下げられたスキル ID -> 新 maxLevel。超過 lv 分のコストを返金。
+const REDUCED_MAX_LEVELS = {
+  atk_multi: 3, // 5 → 3
+};
+
 function migrateRetiredSkills() {
   const skills = readSkills();
   let refund = 0;
   let changed = false;
+
   for (const id of RETIRED_SKILL_IDS) {
     const lv = skills[id] || 0;
     if (lv > 0) {
-      // COST_TABLE 全 5 段の累積を返金
       for (let i = 0; i < lv && i < COST_TABLE.length; i++) refund += COST_TABLE[i];
       delete skills[id];
       changed = true;
@@ -83,6 +87,16 @@ function migrateRetiredSkills() {
       changed = true;
     }
   }
+
+  for (const [id, newMax] of Object.entries(REDUCED_MAX_LEVELS)) {
+    const lv = skills[id] || 0;
+    if (lv > newMax) {
+      for (let i = newMax; i < lv && i < COST_TABLE.length; i++) refund += COST_TABLE[i];
+      skills[id] = newMax;
+      changed = true;
+    }
+  }
+
   if (changed) {
     writeSkills(skills);
     if (refund > 0) writeCoins(readCoins() + refund);
