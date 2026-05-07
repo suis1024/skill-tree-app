@@ -7,7 +7,7 @@ import SettingsScreen from "./SettingsScreen";
 import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress } from "./api";
 import { readSettings, writeSettings } from "./settings";
 import { setHapticsEnabled } from "./haptics";
-import { startBgm, setBgmEnabled, setBgmVolume } from "./bgm";
+import { startBgm, setBgmEnabled, setBgmVolume, playTrack } from "./bgm";
 
 const SCREEN = {
   LOADING: "loading",
@@ -58,6 +58,16 @@ export default function App() {
       startBgm();
     }
   };
+
+  // 画面に応じて BGM トラック切替。GAME / RESULT は stage、それ以外は menu。
+  useEffect(() => {
+    if (screen === SCREEN.LOADING || screen === SCREEN.ERROR) return;
+    if (screen === SCREEN.GAME || screen === SCREEN.RESULT) {
+      playTrack("stage");
+    } else {
+      playTrack("menu");
+    }
+  }, [screen]);
 
   useEffect(() => {
     let cancelled = false;
