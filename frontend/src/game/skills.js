@@ -155,14 +155,16 @@ function layoutWeaponColumns(skills, byId, startY) {
     return { ...col, header: byId[col.headerId], children };
   });
 
-  // 列内の縦依存を自動生成: 列 i 番目の子は (i-1 番目) Lv1 を要求。
-  // 先頭の子はヘッダー (= 武器解放) Lv1 を要求。
+  // 列内の縦依存を自動生成 + depth (列内位置 1 始まり) を記録。
+  // ヘッダー (武器解放) の depth は 0、その下から 1, 2, ... となる。
   for (const col of columns) {
+    if (col.header) col.header._depth = 0;
     let prevId = col.headerId;
-    for (const c of col.children) {
+    col.children.forEach((c, idx) => {
       c.requires = { id: prevId, level: 1 };
+      c._depth = idx + 1;
       prevId = c.id;
-    }
+    });
   }
 
   const ncol = columns.length;
@@ -201,10 +203,11 @@ function layoutSkills(skills) {
       // 武器ごとの縦列レイアウト
       cursorY = layoutWeaponColumns(skills, byId, cursorY);
     } else {
-      // tier 別グリッド
+      // tier 別グリッド (depth = 依存深さ そのまま)
       const tiers = {};
       for (const s of inCat) {
         const t = memo.get(s.id);
+        s._depth = t;
         if (!tiers[t]) tiers[t] = [];
         tiers[t].push(s);
       }
@@ -238,17 +241,29 @@ layoutSkills(SKILLS);
 
 export const SKILL_BY_ID = Object.fromEntries(SKILLS.map((s) => [s.id, s]));
 
+// 列内 / 依存深さによる倍率。深いほど高価に。
+// depth 0 (ヘッダー = 武器解放 / カテゴリ起点) は 1.0、以降線形に増える。
+const DEPTH_MULTIPLIERS = [1.0, 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0];
+
+function depthMul(skill) {
+  const d = skill._depth ?? 0;
+  return DEPTH_MULTIPLIERS[Math.min(d, DEPTH_MULTIPLIERS.length - 1)];
+}
+
 export function nextCost(skill, currentLevel) {
   if (currentLevel >= skill.maxLevel) return null;
   const table = skill.costOverrides || COST_TABLE;
-  return table[Math.min(currentLevel, table.length - 1)];
+  const base = table[Math.min(currentLevel, table.length - 1)];
+  if (skill.costOverrides) return base; // overrides は depth 倍率を掛けない
+  return Math.round(base * depthMul(skill));
 }
 
 export function totalSpent(skill, level) {
   const table = skill.costOverrides || COST_TABLE;
+  const mul = skill.costOverrides ? 1 : depthMul(skill);
   let sum = 0;
-  for (let i = 0; i < level && i < table.length; i++) sum += table[i];
-  return sum;
+  for (let i = 0; i < level && i < table.length; i++) sum += table[i] * mul;
+  return Math.round(sum);
 }
 
 // 解放可能か (前提条件を満たしているか)
