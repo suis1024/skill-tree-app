@@ -3,7 +3,8 @@ import Phaser from "phaser";
 import { makeGameConfig } from "./game/MainScene";
 import { readSettings, writeSettings } from "./settings";
 import { setBgmEnabled, setBgmVolume } from "./bgm";
-import { PauseIcon, BossIcon } from "./icons";
+import { PauseIcon, BossIcon, PlayIcon } from "./icons";
+import { PAL, PX_FONT, JP_FONT } from "./pixel/PixelArt";
 
 export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, onAbort }) {
   const containerRef = useRef(null);
@@ -100,12 +101,15 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
       {paused && (
         <div style={overlayStyle}>
           <div style={menuStyle}>
-            <h2 style={{ margin: "0 0 12px" }}>一時停止</h2>
-            <button style={primaryBtn} onClick={handleResume}>▶ 再開</button>
-            <button style={secondaryBtn} onClick={handleAbort}>放棄してスキルツリーへ</button>
+            <h2 style={menuTitle}>◆ PAUSED ◆</h2>
+            <button style={primaryBtn} onClick={handleResume}>
+              <PlayIcon width={14} height={14} />
+              <span>RESUME</span>
+            </button>
+            <button style={secondaryBtn} onClick={handleAbort}>ABORT</button>
 
             <div style={settingsBlock}>
-              <h3 style={settingsTitle}>サウンド</h3>
+              <h3 style={settingsTitle}>◆ SOUND ◆</h3>
               <SettingRow
                 label="BGM"
                 checked={settings.bgmEnabled}
@@ -114,7 +118,7 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
                 onValue={(v) => updateSettings({ ...settings, bgmVolume: v })}
               />
               <SettingRow
-                label="効果音"
+                label="SE"
                 checked={settings.seEnabled}
                 onToggle={(v) => updateSettings({ ...settings, seEnabled: v })}
                 value={settings.seVolume}
@@ -122,15 +126,15 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
               />
             </div>
 
-            <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 12 }}>
-              放棄すると今回稼いだコインは破棄されます。
+            <p style={menuNote}>
+              ABORT すると今回稼いだコインは破棄されます。
             </p>
 
             <div style={settingsBlock}>
-              <h3 style={settingsTitle}>開発者</h3>
+              <h3 style={settingsTitle}>◆ DEV ◆</h3>
               <button style={cheatBtn} onClick={handleSummonBoss}>
-                <BossIcon width={16} height={16} />
-                <span>ボスを呼ぶ</span>
+                <BossIcon width={14} height={14} />
+                <span>SUMMON BOSS</span>
               </button>
             </div>
           </div>
@@ -144,108 +148,114 @@ const pauseBtnStyle = {
   position: "fixed",
   top: "calc(env(safe-area-inset-top) + 8px)",
   right: "calc(env(safe-area-inset-right) + 12px)",
-  width: 44,
-  height: 44,
-  borderRadius: 22,
-  background: "rgba(15, 23, 42, 0.7)",
-  border: "1px solid #475569",
-  color: "#e2e8f0",
-  fontSize: 20,
+  width: 40,
+  height: 40,
+  background: PAL.ink2,
+  border: "none",
+  color: PAL.bone,
   zIndex: 100,
   cursor: "pointer",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  boxShadow: `2px 2px 0 ${PAL.ink}, 0 0 0 2px ${PAL.gold}`,
 };
 
 const overlayStyle = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0, 0, 0, 0.6)",
+  background: "rgba(10, 6, 18, 0.85)",
   zIndex: 200,
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
   padding: 16,
+  paddingTop: "calc(env(safe-area-inset-top) + 16px)",
+  paddingBottom: "calc(env(safe-area-inset-bottom) + 16px)",
 };
 
 const menuStyle = {
-  background: "#1e293b",
-  border: "1px solid #475569",
-  borderRadius: 8,
-  padding: "20px 24px",
-  minWidth: 260,
-  maxWidth: 360,
+  background: PAL.ink2,
+  padding: "20px 22px",
+  minWidth: 280,
+  maxWidth: 380,
   textAlign: "center",
-  color: "#e2e8f0",
+  color: PAL.bone,
+  fontFamily: JP_FONT,
+  boxShadow: `4px 4px 0 #050309, 0 0 0 2px ${PAL.gold}`,
+  maxHeight: "100%",
+  overflowY: "auto",
+};
+
+const menuTitle = {
+  margin: "0 0 16px",
+  fontFamily: PX_FONT,
+  fontSize: 14, letterSpacing: 4,
+  color: PAL.gold,
+  textShadow: "0 0 12px rgba(240,196,74,0.6)",
+};
+
+const menuNote = {
+  fontSize: 11, color: PAL.bone2, marginTop: 12, marginBottom: 0,
 };
 
 const primaryBtn = {
-  display: "block",
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
   width: "100%",
-  background: "#22c55e",
-  color: "#0f172a",
-  border: "none",
+  background: PAL.blood, color: PAL.bone, border: "none",
   padding: "12px",
-  fontSize: 16,
-  fontWeight: 700,
-  borderRadius: 6,
+  fontFamily: PX_FONT, fontSize: 12, letterSpacing: 2,
   cursor: "pointer",
   marginBottom: 8,
+  boxShadow: `3px 3px 0 ${PAL.bloodDark}, 0 0 0 2px ${PAL.ink}`,
 };
 
 const secondaryBtn = {
-  display: "block",
-  width: "100%",
-  background: "#334155",
-  color: "#e2e8f0",
-  border: "none",
+  display: "block", width: "100%",
+  background: PAL.shadow, color: PAL.bone, border: "none",
   padding: "10px",
-  fontSize: 14,
-  borderRadius: 6,
+  fontFamily: PX_FONT, fontSize: 11, letterSpacing: 2,
   cursor: "pointer",
+  boxShadow: `3px 3px 0 ${PAL.ink}, 0 0 0 2px ${PAL.ink}`,
 };
 
 const cheatBtn = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 8,
+  display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 8,
   width: "100%",
-  background: "#3730a3",
-  color: "#e0e7ff",
-  border: "none",
+  background: "#3730a3", color: "#e0e7ff", border: "none",
   padding: "10px",
-  fontSize: 14,
-  borderRadius: 6,
+  fontFamily: PX_FONT, fontSize: 11, letterSpacing: 2,
   cursor: "pointer",
-  marginTop: 8,
+  marginTop: 4,
+  boxShadow: `3px 3px 0 #1e1b4b, 0 0 0 2px ${PAL.ink}`,
 };
 
 const settingsBlock = {
-  marginTop: 16,
+  marginTop: 18,
   paddingTop: 12,
-  borderTop: "1px solid #334155",
+  borderTop: `1px solid ${PAL.shadow}`,
   textAlign: "left",
 };
 
 const settingsTitle = {
   margin: "0 0 8px",
-  fontSize: 12,
-  color: "#fde047",
-  letterSpacing: 1,
+  fontFamily: PX_FONT, fontSize: 9, letterSpacing: 2,
+  color: PAL.gold,
 };
 
 function SettingRow({ label, checked, onToggle, value, onValue }) {
   const pct = Math.round((value ?? 0) * 100);
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0" }}>
-      <label style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 88, fontSize: 13 }}>
+      <label style={{
+        display: "flex", alignItems: "center", gap: 6, minWidth: 64,
+        fontFamily: PX_FONT, fontSize: 10, color: PAL.bone, letterSpacing: 1,
+      }}>
         <input
           type="checkbox"
           checked={checked}
           onChange={(e) => onToggle(e.target.checked)}
-          style={{ accentColor: "#22c55e" }}
+          style={{ accentColor: PAL.gold }}
         />
         {label}
       </label>
@@ -256,9 +266,12 @@ function SettingRow({ label, checked, onToggle, value, onValue }) {
         value={pct}
         disabled={!checked}
         onChange={(e) => onValue(Number(e.target.value) / 100)}
-        style={{ flex: 1, accentColor: "#22c55e", opacity: checked ? 1 : 0.4 }}
+        style={{ flex: 1, accentColor: PAL.gold, opacity: checked ? 1 : 0.4 }}
       />
-      <span style={{ width: 28, textAlign: "right", fontSize: 12, color: "#94a3b8" }}>{pct}</span>
+      <span style={{
+        width: 28, textAlign: "right",
+        fontFamily: PX_FONT, fontSize: 9, color: PAL.bone2,
+      }}>{pct}</span>
     </div>
   );
 }
