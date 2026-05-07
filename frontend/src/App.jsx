@@ -4,7 +4,7 @@ import SkillTreeScreen from "./SkillTreeScreen";
 import StageSelectScreen from "./StageSelectScreen";
 import TitleScreen from "./TitleScreen";
 import SettingsScreen from "./SettingsScreen";
-import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress } from "./api";
+import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress, cheatAddCoins, cheatUnlockAllStages } from "./api";
 import { readSettings, writeSettings } from "./settings";
 import { setHapticsEnabled } from "./haptics";
 import { startBgm, setBgmEnabled, setBgmVolume, playTrack } from "./bgm";
@@ -44,6 +44,16 @@ export default function App() {
     setHapticsEnabled(next.haptics);
     setBgmEnabled(next.bgmEnabled);
     setBgmVolume(next.bgmVolume);
+  };
+
+  const handleCheatAddCoins = async (amount) => {
+    const res = await cheatAddCoins(amount);
+    setCoins(res.coins);
+  };
+
+  const handleCheatUnlockAllStages = async () => {
+    const res = await cheatUnlockAllStages();
+    setClearedStages(res.cleared_stages);
   };
 
   const handleWipeProgress = async () => {
@@ -174,6 +184,8 @@ export default function App() {
         onChangeSettings={handleChangeSettings}
         onResetSkills={handleReset}
         onWipeProgress={handleWipeProgress}
+        onCheatAddCoins={handleCheatAddCoins}
+        onCheatUnlockAllStages={handleCheatUnlockAllStages}
         onBack={() => setScreen(SCREEN.TREE)}
         backLabel="← スキルツリー"
         busy={busy}

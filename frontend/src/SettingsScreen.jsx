@@ -9,6 +9,8 @@ export default function SettingsScreen({
   onChangeSettings,
   onResetSkills,
   onWipeProgress,
+  onCheatAddCoins,
+  onCheatUnlockAllStages,
   onBack,
   backLabel = "← 戻る",
   busy,
@@ -118,6 +120,26 @@ export default function SettingsScreen({
         <p style={styles.note}>
           コイン・スキル・クリア状況を全消去。完全に最初からやり直す場合のみ。
         </p>
+      </Section>
+
+      <Section title="開発者">
+        <p style={{ ...styles.note, marginTop: 0 }}>動作確認用。申請前に削除予定。</p>
+        <button
+          type="button"
+          onClick={() => onCheatAddCoins && onCheatAddCoins(1000)}
+          disabled={disabled || !onCheatAddCoins}
+          style={styles.cheatButton}
+        >
+          💰 コイン +1000
+        </button>
+        <button
+          type="button"
+          onClick={() => onCheatUnlockAllStages && onCheatUnlockAllStages()}
+          disabled={disabled || !onCheatUnlockAllStages}
+          style={styles.cheatButton}
+        >
+          🔓 全ステージ解放
+        </button>
       </Section>
 
       {confirmState && (
@@ -237,6 +259,10 @@ const styles = {
   dangerButton: {
     width: "100%", background: "#7f1d1d", color: "#fecaca", border: "none",
     padding: "10px", borderRadius: 6, fontSize: 14, cursor: "pointer", marginTop: 12,
+  },
+  cheatButton: {
+    width: "100%", background: "#3730a3", color: "#e0e7ff", border: "none",
+    padding: "10px", borderRadius: 6, fontSize: 14, cursor: "pointer", marginTop: 8,
   },
   note: { fontSize: 11, color: "#94a3b8", margin: "6px 0 0", lineHeight: 1.5 },
   modalOverlay: {

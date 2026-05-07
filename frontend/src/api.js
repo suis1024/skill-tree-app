@@ -2,6 +2,7 @@
 // 関数シグネチャはサーバー版と同じに保つ (App.jsx 側を変えなくて済むように)。
 
 import { SKILLS, SKILL_BY_ID, isUnlockable, totalSpent } from "./game/skills";
+import { TOTAL_STAGES } from "./game/stages";
 
 const USER_ID_KEY = "skill-tree-shooter:user-id";
 const COINS_KEY = "skill-tree-shooter:coins";
@@ -110,6 +111,24 @@ export async function wipeProgress() {
   localStorage.removeItem(STAGES_KEY);
   // user_id と settings は意図的に残す
   return { coins: 0, skill_levels: {}, cleared_stages: [] };
+}
+
+// === 開発者向けチート (申請前に削除予定) ===
+
+export async function cheatAddCoins(amount) {
+  const next = readCoins() + amount;
+  writeCoins(next);
+  return { coins: next };
+}
+
+export async function cheatUnlockAllStages() {
+  const all = [];
+  // クリア済みは「次のステージを解放するため」のフラグなので、最終ステージ前まで
+  // 全部 cleared にすれば全解放扱いになる。最終ステージはクリア済み扱いにしないと
+  // 「全ステージ解放」と言いにくいので含める。
+  for (let i = 1; i <= TOTAL_STAGES; i++) all.push(i);
+  writeClearedStages(all);
+  return { cleared_stages: all };
 }
 
 export async function upgradeSkill(userId, skillId, cost) {
