@@ -127,6 +127,24 @@ export function makeEnemyShape(scene, x, y, size, color, shape = "rect") {
   return factory(scene, x, y, size, color);
 }
 
+// 本体を装飾するネオン要素 (外側グロウ + 内側羊皮紙コア) を生成して返す。
+// 呼び出し側で本体オブジェクトの位置 / 回転に追従させること。
+const PARCHMENT_COLOR = 0xe8d9b8;
+export function makeNeonDecor(scene, x, y, size, color, shape = "rect") {
+  const factory = SHAPE_FACTORIES[shape] || makeRect;
+  // 外側グロウ: 同形状を 1.3 倍、半透明、加算ブレンドで「光ってる」感
+  const glow = factory(scene, x, y, size * 1.3, color);
+  glow.setStrokeStyle(0, 0, 0); // ストローク無し
+  glow.setAlpha(0.35);
+  glow.setBlendMode(Phaser.BlendModes.ADD);
+  glow.setDepth(-1);
+  // 内側コア: 同形状を 0.45 倍、羊皮紙色 (#e8d9b8)
+  const core = factory(scene, x, y, size * 0.45, PARCHMENT_COLOR);
+  core.setStrokeStyle(0, 0, 0);
+  core.setAlpha(0.7);
+  return { glow, core };
+}
+
 export const BODY_RADIUS_RATIO = 0.45;
 
 // box (width=size, height=size) の中心に円判定を置く。

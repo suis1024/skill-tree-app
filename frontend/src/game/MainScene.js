@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 import { computeStats } from "./skills";
 import { ENEMY_TYPES } from "./enemies";
-import { makeEnemyShape, setCircleBody } from "./shapes";
+import { makeEnemyShape, setCircleBody, makeNeonDecor } from "./shapes";
 import { WAVE_DURATION_MS, stageMul, clearBonusCoins } from "./stages";
 import { getStageWaves } from "./waves";
 import { bossForStage } from "./bosses";
@@ -91,6 +91,9 @@ export default class MainScene extends Phaser.Scene {
 
     // 自機: 矢じり型の三角。rotation は aimDir に追従。
     this.player = makeEnemyShape(this, this.worldWidth / 2, this.worldHeight / 2, 28, 0x38bdf8, "triangle");
+    const playerDecor = makeNeonDecor(this, this.worldWidth / 2, this.worldHeight / 2, 28, 0x38bdf8, "triangle");
+    this.player.glow = playerDecor.glow;
+    this.player.core = playerDecor.core;
     this.physics.add.existing(this.player);
     setCircleBody(this.player, 28);
     this.player.body.setCollideWorldBounds(true);
@@ -370,7 +373,27 @@ export default class MainScene extends Phaser.Scene {
         enemy._prevX = enemy.x;
         enemy._prevY = enemy.y;
       }
+
+      // ネオン装飾を本体に追従
+      if (enemy.glow) {
+        enemy.glow.setPosition(enemy.x, enemy.y);
+        enemy.glow.rotation = enemy.rotation;
+      }
+      if (enemy.core) {
+        enemy.core.setPosition(enemy.x, enemy.y);
+        enemy.core.rotation = enemy.rotation;
+      }
     });
+
+    // 自機のネオン装飾も追従
+    if (this.player.glow) {
+      this.player.glow.setPosition(this.player.x, this.player.y);
+      this.player.glow.rotation = this.player.rotation;
+    }
+    if (this.player.core) {
+      this.player.core.setPosition(this.player.x, this.player.y);
+      this.player.core.rotation = this.player.rotation;
+    }
 
     this.enemyBullets.children.iterate((eb) => {
       if (!eb || !eb.active) return;
@@ -516,6 +539,8 @@ export default class MainScene extends Phaser.Scene {
     if (this.waveTimers) this.waveTimers.forEach((t) => t.remove());
     this.enemies.children.iterate((e) => {
       if (!e) return;
+      if (e.glow) e.glow.destroy();
+      if (e.core) e.core.destroy();
       e.destroy();
     });
     this.enemyBullets.children.iterate((e) => e && e.destroy());
@@ -565,6 +590,9 @@ export default class MainScene extends Phaser.Scene {
     const y = Math.min(120, this.worldHeight * 0.2);
     const boss = makeEnemyShape(this, x, y, def.size, def.color, def.shape || "rect");
     boss.setStrokeStyle(3, 0xfacc15);
+    const bossDecor = makeNeonDecor(this, x, y, def.size, def.color, def.shape || "rect");
+    boss.glow = bossDecor.glow;
+    boss.core = bossDecor.core;
     this.enemies.add(boss);
     setCircleBody(boss, def.size);
     boss.isBoss = true;
@@ -693,6 +721,9 @@ export default class MainScene extends Phaser.Scene {
     const damageMul = (mods.damageMul ?? 1) * this.stageMul.damage;
     const { x, y } = this.pickSpawnPositionInside(def.size);
     const enemy = makeEnemyShape(this, x, y, def.size, def.color, def.shape);
+    const decor = makeNeonDecor(this, x, y, def.size, def.color, def.shape);
+    enemy.glow = decor.glow;
+    enemy.core = decor.core;
     this.enemies.add(enemy);
     setCircleBody(enemy, def.size);
     if (enemy.body) enemy.body.setCollideWorldBounds(true);
@@ -1191,6 +1222,8 @@ export default class MainScene extends Phaser.Scene {
     const wasBoss = enemy.isBoss;
     const burstColor = enemy.fillColor ?? 0xffffff;
     const burstScale = wasBoss ? 2.2 : 1;
+    if (enemy.glow) { enemy.glow.destroy(); enemy.glow = null; }
+    if (enemy.core) { enemy.core.destroy(); enemy.core = null; }
     enemy.destroy();
     spawnDeathBurst(this, x, y, burstColor, burstScale);
     for (let i = 0; i < dropCount; i++) {
@@ -1274,6 +1307,8 @@ export default class MainScene extends Phaser.Scene {
 
   hitPlayer(enemy, rawDamage) {
     if (this.time.now < this.invincibleUntil) return;
+    if (enemy.glow) { enemy.glow.destroy(); enemy.glow = null; }
+    if (enemy.core) { enemy.core.destroy(); enemy.core = null; }
     enemy.destroy();
     this.applyDamage(rawDamage);
   }
