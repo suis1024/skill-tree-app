@@ -298,29 +298,7 @@ export default class MainScene extends Phaser.Scene {
       const effSpeed = enemy.speed * speedMul;
 
       if (enemy.isBoss) {
-        const p = enemy.pattern;
-        if (p && p.startsWith("shoot")) {
-          const diff = dist - (enemy.preferredDistance || 240);
-          const dir = Math.abs(diff) < 20 ? 0 : Math.sign(diff);
-          enemy.body.setVelocity(nx * enemy.speed * dir, ny * enemy.speed * dir);
-          if (this.time.now >= enemy.nextShotAt) {
-            enemy.nextShotAt = this.time.now + (enemy.shootIntervalMs || 1500);
-            this.fireBossBullets(enemy, nx, ny);
-          }
-        } else if (p === "chase_burst") {
-          enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
-          if (this.time.now >= enemy.nextBurstAt) {
-            enemy.nextBurstAt = this.time.now + 2200;
-            this.fireRing(enemy, 14, 230);
-          }
-        } else {
-          // chase デフォルト: 追跡しつつ 1.8 秒に 1 回リング弾
-          enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
-          if (this.time.now >= enemy.nextBurstAt) {
-            enemy.nextBurstAt = this.time.now + 1800;
-            this.fireRing(enemy, 10, 220);
-          }
-        }
+        this.updateBossPattern(enemy, nx, ny, delta);
       } else if (enemy.isBouncer) {
         this.updateBouncer(enemy);
       } else if (enemy.isTurret) {
@@ -553,15 +531,25 @@ export default class MainScene extends Phaser.Scene {
     const bossHp = Math.round(def.hp * (this.stageMul.bossHp ?? 1));
     boss.hp = bossHp;
     boss.hpMax = bossHp;
-    boss.speed = def.speed;
+    boss.size = def.size;
+    boss.speed = 0; // updateBossPattern が直接位置制御するので一般 speed は使わない
     boss.contactDamage = def.contactDamage;
     boss.coinDrop = 0; // クリアボーナスで別途付与
     boss.pattern = def.pattern;
     boss.shotSpeed = def.shotSpeed;
     boss.shootIntervalMs = def.shotIntervalMs;
-    boss.preferredDistance = def.preferredDistance;
+    boss.bulletCount = def.bulletCount || 8;
+    boss.moveSpeed = def.moveSpeed || 100;
+    boss.amplitude = def.amplitude || 200;
     boss.nextShotAt = this.time.now + 1000;
-    boss.nextBurstAt = this.time.now + 3000;
+    boss.patternStartAt = this.time.now;
+    boss.spawnX = x;
+    boss.spawnY = y;
+    // pendulum 用
+    boss.pendDir = 1;
+    boss.pendNextSwitchAt = 0;
+    // zigzag 用
+    boss.zigzagPhase = 0;
     // 形に応じた rotation 制御
     if (def.shape === "star") {
       boss.spinRate = 0.012; // ラスボス: 速めの自転で威圧感
@@ -578,16 +566,6 @@ export default class MainScene extends Phaser.Scene {
     this.player.setAlpha(0.4);
   }
 
-  fireBossBullets(boss, nx, ny) {
-    if (boss.pattern === "shoot3way") {
-      this.fireSpread(boss, nx, ny, 3, 0.25, boss.shotSpeed);
-    } else if (boss.pattern === "shoot5way") {
-      this.fireSpread(boss, nx, ny, 5, 0.22, boss.shotSpeed);
-    } else if (boss.pattern === "shoot8way") {
-      this.fireRing(boss, 8, boss.shotSpeed);
-    }
-  }
-
   fireSpread(src, nx, ny, count, spread, speed) {
     const baseAngle = Math.atan2(ny, nx);
     const start = baseAngle - (spread * (count - 1)) / 2;
@@ -602,8 +580,12 @@ export default class MainScene extends Phaser.Scene {
   }
 
   fireRing(src, count, speed) {
+    this.fireRingOffset(src, count, speed, 0);
+  }
+
+  fireRingOffset(src, count, speed, angOffset) {
     for (let i = 0; i < count; i++) {
-      const angle = (Math.PI * 2 * i) / count;
+      const angle = (Math.PI * 2 * i) / count + angOffset;
       const eb = this.add.circle(src.x, src.y, 6, 0xfca5a5);
       this.enemyBullets.add(eb);
       eb.body.setCircle(eb.radius);
@@ -719,6 +701,114 @@ export default class MainScene extends Phaser.Scene {
         eb.body.setCircle(eb.radius);
         eb.body.setVelocity(Math.cos(a) * enemy.turretShotSpeed, Math.sin(a) * enemy.turretShotSpeed);
         this.time.delayedCall(4000, () => eb.destroy());
+      }
+    }
+  }
+
+  // ボスの移動 + 攻撃パターン。決定論的に動く (弾幕避けゲー寄り)。
+  updateBossPattern(boss, nx, ny, delta) {
+    const now = this.time.now;
+    const elapsed = now - boss.patternStartAt;
+    const margin = boss.size * 0.6 + 20;
+    const minX = margin;
+    const maxX = this.worldWidth - margin;
+    const minY = margin;
+    const maxY = this.worldHeight - margin;
+
+    switch (boss.pattern) {
+      case "pendulum": {
+        // 左右に振り子。両端 (or amplitude 端) に到達したら 600ms 停止して扇撃ち。
+        if (boss.pendStopUntil && now < boss.pendStopUntil) {
+          boss.body.setVelocity(0, 0);
+          if (now >= boss.nextShotAt) {
+            boss.nextShotAt = boss.pendStopUntil + 200;
+            this.fireSpread(boss, nx, ny, boss.bulletCount, 0.18, boss.shotSpeed);
+          }
+        } else {
+          boss.body.setVelocity(boss.pendDir * boss.moveSpeed, 0);
+          const limitL = Math.max(minX, boss.spawnX - boss.amplitude / 2);
+          const limitR = Math.min(maxX, boss.spawnX + boss.amplitude / 2);
+          if (boss.pendDir > 0 && boss.x >= limitR) {
+            boss.x = limitR;
+            boss.body.reset(boss.x, boss.y);
+            boss.pendDir = -1;
+            boss.pendStopUntil = now + 600;
+          } else if (boss.pendDir < 0 && boss.x <= limitL) {
+            boss.x = limitL;
+            boss.body.reset(boss.x, boss.y);
+            boss.pendDir = 1;
+            boss.pendStopUntil = now + 600;
+          }
+        }
+        break;
+      }
+      case "figure8": {
+        // 中央 (spawn 位置) を中心に 8 の字 (リサジュー)。x = A sin(t), y = A/2 sin(2t)
+        const t = (elapsed / 1000) * (boss.moveSpeed / 100); // 1.0 = base period
+        const A = boss.amplitude;
+        const tx = boss.spawnX + Math.sin(t) * A * 0.5;
+        const ty = boss.spawnY + Math.sin(t * 2) * A * 0.25;
+        boss.body.setVelocity(0, 0);
+        boss.x = Phaser.Math.Clamp(tx, minX, maxX);
+        boss.y = Phaser.Math.Clamp(ty, minY, maxY);
+        boss.body.reset(boss.x, boss.y);
+        if (now >= boss.nextShotAt) {
+          boss.nextShotAt = now + boss.shootIntervalMs;
+          this.fireRing(boss, boss.bulletCount, boss.shotSpeed);
+        }
+        break;
+      }
+      case "circle_orbit": {
+        // 中心 (spawn 位置) を中心に円運動。
+        const omega = boss.moveSpeed / 80; // rad/sec
+        const t = (elapsed / 1000) * omega;
+        const tx = boss.spawnX + Math.cos(t) * boss.amplitude * 0.5;
+        const ty = boss.spawnY + Math.sin(t) * boss.amplitude * 0.5;
+        boss.body.setVelocity(0, 0);
+        boss.x = Phaser.Math.Clamp(tx, minX, maxX);
+        boss.y = Phaser.Math.Clamp(ty, minY, maxY);
+        boss.body.reset(boss.x, boss.y);
+        if (now >= boss.nextShotAt) {
+          boss.nextShotAt = now + boss.shootIntervalMs;
+          // 放射弾: ボスから見た外側方向 (= 円の接線方向ではなく中心からの放射状)
+          this.fireRing(boss, boss.bulletCount, boss.shotSpeed);
+        }
+        break;
+      }
+      case "anchored_ring": {
+        // 中央固定。リング弾を周期的に撒く。回転オフセットで弾道が毎周回少し変わる。
+        boss.body.setVelocity(0, 0);
+        boss.x = boss.spawnX;
+        boss.y = boss.spawnY;
+        boss.body.reset(boss.x, boss.y);
+        if (now >= boss.nextShotAt) {
+          boss.nextShotAt = now + boss.shootIntervalMs;
+          const angOffset = (boss.ringIndex || 0) * 0.13;
+          this.fireRingOffset(boss, boss.bulletCount, boss.shotSpeed, angOffset);
+          boss.ringIndex = (boss.ringIndex || 0) + 1;
+        }
+        break;
+      }
+      case "zigzag_descend": {
+        // 画面上部の帯 (y = spawnY .. spawnY + amplitude) を上下しつつ横揺れ。
+        const t = (elapsed / 1000) * (boss.moveSpeed / 100);
+        const A = boss.amplitude;
+        const tx = boss.spawnX + Math.sin(t * 1.5) * A * 0.5;
+        const ty = boss.spawnY + (1 - Math.cos(t)) * A * 0.4;
+        boss.body.setVelocity(0, 0);
+        boss.x = Phaser.Math.Clamp(tx, minX, maxX);
+        boss.y = Phaser.Math.Clamp(ty, minY, maxY);
+        boss.body.reset(boss.x, boss.y);
+        if (now >= boss.nextShotAt) {
+          boss.nextShotAt = now + boss.shootIntervalMs;
+          // 下方向に扇撃ち (プレイヤー方向ではなく、画面下に向かって)
+          this.fireSpread(boss, 0, 1, boss.bulletCount, 0.30, boss.shotSpeed);
+        }
+        break;
+      }
+      default: {
+        // 未知パターンは中央固定
+        boss.body.setVelocity(0, 0);
       }
     }
   }
