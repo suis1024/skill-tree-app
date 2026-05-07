@@ -12,7 +12,7 @@
 import { readSettings } from "./settings";
 
 const TRACKS = {
-  click:   { url: "audio/se/ui_click.mp3", volume: 0.5 },
+  click:   { url: "audio/se/ui_click.mp3", volume: 1.0 },
   upgrade: { url: "audio/se/ui_upgrade.mp3", volume: 0.7 },
 };
 
