@@ -109,7 +109,8 @@ export default class MainScene extends Phaser.Scene {
 
     this.setupWaves();
 
-    this.physics.add.overlap(this.bullets, this.enemies, (bullet, enemy) => this.onBulletHit(bullet, enemy));
+    // bullets × enemies は自前のグリッド判定 (updateBulletEnemyCollision) で処理する。
+    // arcade overlap は弾数 × 敵数 が増えるとボトルネックになるため。
     this.physics.add.overlap(this.player, this.enemies, (_p, enemy) => this.hitPlayer(enemy, enemy.contactDamage || 1));
     this.physics.add.overlap(this.player, this.enemyBullets, (_p, eb) => this.onPlayerHitByEnemyBullet(eb));
     this.physics.add.overlap(this.player, this.coinSprites, (_p, coin) => this.pickupCoin(coin));
@@ -360,6 +361,7 @@ export default class MainScene extends Phaser.Scene {
 
     updateHomingBullets(this);
     updateOrbitals(this, delta);
+    this.updateBulletEnemyCollision();
     this.updateEnemyHpBars();
     this.updatePlayerHpBar();
 
@@ -764,6 +766,68 @@ export default class MainScene extends Phaser.Scene {
     }
     eb.destroy();
     this.applyDamage(ENEMY_BULLET_DAMAGE);
+  }
+
+  // bullets × enemies の自前グリッド判定。
+  // 雑魚はセルに登録して近隣セルだけ判定。ボスは別途全弾と判定 (1 体なので軽い)。
+  updateBulletEnemyCollision() {
+    const bullets = this.bullets.getChildren();
+    const enemies = this.enemies.getChildren();
+    if (bullets.length === 0 || enemies.length === 0) return;
+
+    const CELL = 96;
+    const grid = new Map(); // key: "cx,cy" -> enemy[]
+    let boss = null;
+    for (let i = 0; i < enemies.length; i++) {
+      const e = enemies[i];
+      if (!e || !e.active || e.isSpawning) continue;
+      if (e.isBoss) { boss = e; continue; }
+      const cx = Math.floor(e.x / CELL);
+      const cy = Math.floor(e.y / CELL);
+      const key = cx + "," + cy;
+      let arr = grid.get(key);
+      if (!arr) { arr = []; grid.set(key, arr); }
+      arr.push(e);
+    }
+
+    for (let i = 0; i < bullets.length; i++) {
+      const b = bullets[i];
+      if (!b || !b.active) continue;
+      const br = b.radius || (b.width ? b.width * 0.5 : 5);
+      const bcx = Math.floor(b.x / CELL);
+      const bcy = Math.floor(b.y / CELL);
+      let consumed = false;
+
+      for (let dy = -1; dy <= 1 && !consumed; dy++) {
+        for (let dx = -1; dx <= 1 && !consumed; dx++) {
+          const arr = grid.get((bcx + dx) + "," + (bcy + dy));
+          if (!arr) continue;
+          for (let k = 0; k < arr.length; k++) {
+            const e = arr[k];
+            if (!e.active) continue;
+            const er = (e.displayWidth || 24) * 0.45; // 円判定半径と揃える
+            const rx = b.x - e.x;
+            const ry = b.y - e.y;
+            const rr = br + er;
+            if (rx * rx + ry * ry <= rr * rr) {
+              this.onBulletHit(b, e);
+              if (!b.active) { consumed = true; break; }
+            }
+          }
+        }
+      }
+
+      // ボスは grid 外なので個別判定
+      if (boss && b.active) {
+        const er = (boss.displayWidth || 60) * 0.5;
+        const rx = b.x - boss.x;
+        const ry = b.y - boss.y;
+        const rr = br + er;
+        if (rx * rx + ry * ry <= rr * rr) {
+          this.onBulletHit(b, boss);
+        }
+      }
+    }
   }
 
   onBulletHit(bullet, enemy) {
