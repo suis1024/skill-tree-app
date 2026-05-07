@@ -155,7 +155,39 @@ export default class MainScene extends Phaser.Scene {
     this.physics.add.overlap(this.player, this.enemyBullets, (_p, eb) => this.onPlayerHitByEnemyBullet(eb));
     this.physics.add.overlap(this.player, this.coinSprites, (_p, coin) => this.pickupCoin(coin));
 
+    // POST_UPDATE: arcade physics が body の最終位置を game object に書き戻した *後* に
+    // glow / core を本体に同期する。ここでないと移動速度分だけ glow が遅れて見える。
+    this.events.on(Phaser.Scenes.Events.POST_UPDATE, this.syncDecorations, this);
+
     this.createHud();
+  }
+
+  // 本体の最新 x/y/rotation を glow / core にコピーする。POST_UPDATE で 1 度だけ呼ぶ。
+  syncDecorations() {
+    if (this.gameOverActive) return;
+    this.enemies.children.iterate((e) => {
+      if (!e || !e.active) return;
+      if (e.glow) {
+        e.glow.x = e.x;
+        e.glow.y = e.y;
+        e.glow.rotation = e.rotation;
+      }
+      if (e.core) {
+        e.core.x = e.x;
+        e.core.y = e.y;
+        e.core.rotation = e.rotation;
+      }
+    });
+    if (this.player && this.player.glow) {
+      this.player.glow.x = this.player.x;
+      this.player.glow.y = this.player.y;
+      this.player.glow.rotation = this.player.rotation;
+    }
+    if (this.player && this.player.core) {
+      this.player.core.x = this.player.x;
+      this.player.core.y = this.player.y;
+      this.player.core.rotation = this.player.rotation;
+    }
   }
 
   createHud() {
