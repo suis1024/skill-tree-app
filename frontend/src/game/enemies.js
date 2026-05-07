@@ -12,6 +12,7 @@ export const ENEMY_TYPES = {
     contactDamage: 10,
     coinDrop: 1,
     canShoot: false,
+    shape: "rect",
   },
   swift: {
     color: 0x60a5fa,
@@ -21,6 +22,8 @@ export const ENEMY_TYPES = {
     contactDamage: 10,
     coinDrop: 1,
     canShoot: false,
+    shape: "triangle",
+    aimByVelocity: true,
   },
   tank: {
     color: 0xa855f7,
@@ -30,18 +33,19 @@ export const ENEMY_TYPES = {
     contactDamage: 20,
     coinDrop: 2,
     canShoot: false,
+    shape: "rect",
   },
   shooter: {
     color: 0xfbbf24,
     size: 22,
     hp: 50,
-    speed: 70,
+    speed: 0,
     contactDamage: 10,
     coinDrop: 1,
     canShoot: true,
     shootIntervalMs: 1800,
     shotSpeed: 220,
-    preferredDistance: 240,
+    shape: "diamond",
   },
   bouncer: {
     color: 0x14b8a6,
@@ -52,6 +56,7 @@ export const ENEMY_TYPES = {
     coinDrop: 2,
     canShoot: false,
     isBouncer: true,
+    shape: "circle",
   },
   turret: {
     color: 0x9333ea,
@@ -65,6 +70,7 @@ export const ENEMY_TYPES = {
     turretShotIntervalMs: 1800,
     turretShotSpeed: 180,
     turretRotateRate: 0.018,
+    shape: "pentagon",
   },
   charger: {
     color: 0xfb923c,
@@ -79,6 +85,7 @@ export const ENEMY_TYPES = {
     chargeTelegraphMs: 500,
     chargeDurationMs: 800,
     chargeSpeed: 380,
+    shape: "triangle_wide",
   },
 };
 

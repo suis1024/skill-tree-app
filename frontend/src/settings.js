@@ -9,6 +9,7 @@ const DEFAULTS = {
   seEnabled: true,
   bgmVolume: 0.5,   // 0..1
   seVolume: 0.7,    // 0..1
+  damageNumbers: true, // 被ダメ表記。OFF で軽量化
 };
 
 export function readSettings() {

@@ -43,6 +43,12 @@ export default function SettingsScreen({
           checked={settings.screenShake}
           onChange={(v) => onChangeSettings({ ...settings, screenShake: v })}
         />
+        <Toggle
+          label="ダメージ数表示"
+          description="敵への被ダメ数を表示。OFF で動作が軽くなる"
+          checked={settings.damageNumbers}
+          onChange={(v) => onChangeSettings({ ...settings, damageNumbers: v })}
+        />
       </Section>
 
       <Section title="フィードバック">

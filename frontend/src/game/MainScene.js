@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { computeStats } from "./skills";
 import { ENEMY_TYPES } from "./enemies";
+import { makeEnemyShape, setCircleBody } from "./shapes";
 import { WAVE_DURATION_MS, stageMul, clearBonusCoins } from "./stages";
 import { getStageWaves } from "./waves";
 import { bossForStage } from "./bosses";
@@ -60,6 +61,7 @@ export default class MainScene extends Phaser.Scene {
 
     this.player = this.add.rectangle(this.worldWidth / 2, this.worldHeight / 2, 28, 28, 0x60a5fa);
     this.physics.add.existing(this.player);
+    setCircleBody(this.player, 28);
     this.player.body.setCollideWorldBounds(true);
     this.aimDir = new Phaser.Math.Vector2(1, 0);
 
@@ -67,7 +69,7 @@ export default class MainScene extends Phaser.Scene {
     this.enemies = this.physics.add.group();
     this.enemyBullets = this.physics.add.group();
     this.coinSprites = this.physics.add.group();
-    this.enemyHpBars = [];
+    this.enemyHpBarGfx = this.add.graphics().setDepth(1500);
 
     this.keysWasd = this.input.keyboard.addKeys({
       up: Phaser.Input.Keyboard.KeyCodes.W,
@@ -243,11 +245,11 @@ export default class MainScene extends Phaser.Scene {
     }
 
     this.enemies.children.iterate((enemy) => {
-      if (!enemy || !enemy.body) return;
+      if (!enemy || !enemy.active || !enemy.body) return;
       if (enemy.isSpawning) return;
       const dx = this.player.x - enemy.x;
       const dy = this.player.y - enemy.y;
-      const dist = Math.hypot(dx, dy) || 1;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       const nx = dx / dist;
       const ny = dy / dist;
 
@@ -281,11 +283,8 @@ export default class MainScene extends Phaser.Scene {
         this.updateTurret(enemy);
       } else if (enemy.isCharger) {
         this.updateCharger(enemy, nx, ny, dist);
-      } else if (enemy.canShoot && enemy.preferredDistance) {
-        const diff = dist - enemy.preferredDistance;
-        const dir = Math.abs(diff) < 16 ? 0 : Math.sign(diff);
-        enemy.body.setVelocity(nx * enemy.speed * dir, ny * enemy.speed * dir);
-
+      } else if (enemy.canShoot) {
+        enemy.body.setVelocity(0, 0);
         if (this.time.now >= enemy.nextShotAt) {
           enemy.nextShotAt = this.time.now + enemy.shootIntervalMs;
           this.fireEnemyBullet(enemy, nx, ny);
@@ -293,10 +292,23 @@ export default class MainScene extends Phaser.Scene {
       } else {
         enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
       }
+
+      // 見た目の rotation 制御。turret / charger は専用 update で設定済みなのでスキップ。
+      if (!enemy.isTurret && !enemy.isCharger) {
+        if (enemy.spinRate) {
+          enemy.rotation += enemy.spinRate;
+        } else if (enemy.aimByVelocity && enemy.body) {
+          const vx = enemy.body.velocity.x;
+          const vy = enemy.body.velocity.y;
+          if (vx * vx + vy * vy > 1) {
+            enemy.rotation = Math.atan2(vy, vx);
+          }
+        }
+      }
     });
 
     this.enemyBullets.children.iterate((eb) => {
-      if (!eb) return;
+      if (!eb || !eb.active) return;
       if (eb.x < -20 || eb.x > this.worldWidth + 20 || eb.y < -20 || eb.y > this.worldHeight + 20) {
         eb.destroy();
       }
@@ -317,15 +329,16 @@ export default class MainScene extends Phaser.Scene {
     const magnetRadius = COIN_BASE_PICKUP_RADIUS * this.stats.magnetMul;
     const playerSpeed = PLAYER_BASE_SPEED * this.stats.speedMul;
     const magnetSpeed = Math.max(COIN_MAGNET_SPEED, playerSpeed * 1.6);
+    const magnetRadiusSq = magnetRadius * magnetRadius;
     this.coinSprites.children.iterate((coin) => {
-      if (!coin || !coin.body) return;
+      if (!coin || !coin.active || !coin.body) return;
       const dx = this.player.x - coin.x;
       const dy = this.player.y - coin.y;
-      const dist = Math.hypot(dx, dy);
-      if (dist < magnetRadius) {
-        const len = dist || 1;
+      const distSq = dx * dx + dy * dy;
+      if (distSq < magnetRadiusSq) {
+        const len = Math.sqrt(distSq) || 1;
         coin.body.setVelocity((dx / len) * magnetSpeed, (dy / len) * magnetSpeed);
-      } else {
+      } else if (coin.body.velocity.x !== 0 || coin.body.velocity.y !== 0) {
         coin.body.setVelocity(0, 0);
       }
     });
@@ -427,8 +440,6 @@ export default class MainScene extends Phaser.Scene {
     if (this.waveTimers) this.waveTimers.forEach((t) => t.remove());
     this.enemies.children.iterate((e) => {
       if (!e) return;
-      if (e.hpBar) e.hpBar.destroy();
-      if (e.hpBarBg) e.hpBarBg.destroy();
       e.destroy();
     });
     this.enemyBullets.children.iterate((e) => e && e.destroy());
@@ -540,10 +551,18 @@ export default class MainScene extends Phaser.Scene {
     const speedMul = (mods.speedMul ?? 1) * this.stageMul.speed;
     const damageMul = (mods.damageMul ?? 1) * this.stageMul.damage;
     const { x, y } = this.pickSpawnPositionInside(def.size);
-    const enemy = this.add.rectangle(x, y, def.size, def.size, def.color);
+    const enemy = makeEnemyShape(this, x, y, def.size, def.color, def.shape);
     this.enemies.add(enemy);
+    setCircleBody(enemy, def.size);
     if (enemy.body) enemy.body.setCollideWorldBounds(true);
     enemy.typeId = typeId;
+    enemy.shape = def.shape;
+    enemy.aimByVelocity = !!def.aimByVelocity;
+    if (def.shape === "rect") {
+      // grunt: ランダム方向に一定速度で自転
+      const sign = Math.random() < 0.5 ? -1 : 1;
+      enemy.spinRate = sign * Phaser.Math.FloatBetween(0.01, 0.03);
+    }
     enemy.hp = Math.max(1, Math.round(def.hp * hpMul));
     enemy.hpMax = enemy.hp;
     enemy.speed = def.speed * speedMul;
@@ -552,7 +571,6 @@ export default class MainScene extends Phaser.Scene {
     enemy.canShoot = def.canShoot;
     if (def.canShoot) {
       enemy.shootIntervalMs = def.shootIntervalMs;
-      enemy.preferredDistance = def.preferredDistance;
       enemy.shotSpeed = def.shotSpeed;
       enemy.nextShotAt = this.time.now + Phaser.Math.Between(500, def.shootIntervalMs);
     }
@@ -615,14 +633,19 @@ export default class MainScene extends Phaser.Scene {
 
   updateCharger(enemy, nx, ny, dist) {
     const now = this.time.now;
+    const turnRate = 0.08; // rad/frame の最大回転速度
+    let targetAngle = null;
+
     switch (enemy.chargeState) {
       case "idle": {
-        // 検知範囲外なら通常追跡
+        // 検知範囲内に入った瞬間、現プレイヤー方向で方向ロック → telegraph 開始
         if (dist <= enemy.chargeDetectRange) {
+          enemy.chargeDirX = nx;
+          enemy.chargeDirY = ny;
+          enemy.rotation = Math.atan2(ny, nx); // フラッシュ前に瞬間で向き合わせる
           enemy.chargeState = "telegraphing";
           enemy.chargeStateUntil = now + enemy.chargeTelegraphMs;
           enemy.body.setVelocity(0, 0);
-          // 予兆: 点滅
           this.tweens.add({
             targets: enemy,
             alpha: { from: 1, to: 0.4 },
@@ -632,20 +655,18 @@ export default class MainScene extends Phaser.Scene {
           });
         } else {
           enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+          targetAngle = Math.atan2(ny, nx); // 追跡中も滑らかにプレイヤー方向
         }
         break;
       }
       case "telegraphing": {
+        enemy.body.setVelocity(0, 0);
         if (now >= enemy.chargeStateUntil) {
-          // 予兆終了 → 突進方向ロック (現在のプレイヤー方向)
-          enemy.chargeDirX = nx;
-          enemy.chargeDirY = ny;
           enemy.chargeState = "charging";
           enemy.chargeStateUntil = now + enemy.chargeDurationMs;
           enemy.alpha = 1;
-        } else {
-          enemy.body.setVelocity(0, 0);
         }
+        // ロック済み方向を維持 (rotation は変えない)
         break;
       }
       case "charging": {
@@ -658,6 +679,7 @@ export default class MainScene extends Phaser.Scene {
             enemy.chargeDirY * enemy.chargeSpeed,
           );
         }
+        // rotation は chargeDir のまま固定
         break;
       }
       case "cooldown": {
@@ -665,8 +687,17 @@ export default class MainScene extends Phaser.Scene {
         if (now >= enemy.chargeStateUntil) {
           enemy.chargeState = "idle";
         }
+        // cooldown 中も滑らかにプレイヤー方向へ向き直し始める
+        targetAngle = Math.atan2(ny, nx);
         break;
       }
+    }
+
+    // 滑らかな方向転換 (idle 追跡中 / cooldown)
+    if (targetAngle !== null) {
+      const diff = Phaser.Math.Angle.Wrap(targetAngle - enemy.rotation);
+      const step = Phaser.Math.Clamp(diff, -turnRate, turnRate);
+      enemy.rotation += step;
     }
   }
 
@@ -745,7 +776,9 @@ export default class MainScene extends Phaser.Scene {
   damageEnemy(enemy, dmg, isCrit = false) {
     if (!enemy || !enemy.active) return;
     enemy.hp -= dmg;
-    popDamageText(this, enemy.x, enemy.y - (enemy.displayHeight || 24) / 2, dmg, isCrit);
+    if (this.settings.damageNumbers !== false) {
+      popDamageText(this, enemy.x, enemy.y - (enemy.displayHeight || 24) / 2, dmg, isCrit);
+    }
     if (enemy.hp <= 0) {
       this.killEnemy(enemy);
       return;
@@ -769,35 +802,29 @@ export default class MainScene extends Phaser.Scene {
     });
   }
 
+  // ダメージを受けた敵にフラグだけ立てる。実描画は updateEnemyHpBars が一括でやる。
   ensureEnemyHpBar(enemy) {
-    if (enemy.hpBar || enemy.isBoss) return;
-    const w = Math.max(18, (enemy.displayWidth || 24) * 0.9);
-    const h = 4;
-    enemy.hpBarWidth = w;
-    enemy.hpBarBg = this.add.rectangle(enemy.x, enemy.y + (enemy.displayHeight || 24) / 2 + 8, w, h, 0x1f2937)
-      .setOrigin(0.5, 0).setDepth(1500);
-    enemy.hpBar = this.add.rectangle(enemy.x - w / 2, enemy.y + (enemy.displayHeight || 24) / 2 + 8, w, h, 0xef4444)
-      .setOrigin(0, 0).setDepth(1501);
-    if (!this.enemyHpBars) this.enemyHpBars = [];
-    this.enemyHpBars.push({ owner: enemy, bg: enemy.hpBarBg, fg: enemy.hpBar });
+    if (enemy.isBoss) return;
+    if (!enemy.hpBarWidth) {
+      enemy.hpBarWidth = Math.max(18, (enemy.displayWidth || 24) * 0.9);
+    }
+    enemy.showHpBar = true;
   }
 
   updateEnemyHpBars() {
-    if (!this.enemyHpBars) return;
-    // 所有者が消えたバーを掃除しつつ、生きてるものだけ位置更新
-    this.enemyHpBars = this.enemyHpBars.filter((entry) => {
-      const e = entry.owner;
-      if (!e || !e.active) {
-        if (entry.bg && entry.bg.scene) entry.bg.destroy();
-        if (entry.fg && entry.fg.scene) entry.fg.destroy();
-        return false;
-      }
+    const gfx = this.enemyHpBarGfx;
+    if (!gfx) return;
+    gfx.clear();
+    const h = 4;
+    this.enemies.children.iterate((e) => {
+      if (!e || !e.active || !e.showHpBar || e.isBoss) return;
+      const w = e.hpBarWidth || Math.max(18, (e.displayWidth || 24) * 0.9);
       const yOff = (e.displayHeight || 24) / 2 + 8;
-      entry.bg.setPosition(e.x, e.y + yOff);
-      entry.fg.setPosition(e.x - e.hpBarWidth / 2, e.y + yOff);
-      const ratio = Math.max(0, e.hp) / e.hpMax;
-      entry.fg.width = e.hpBarWidth * ratio;
-      return true;
+      const x = e.x - w / 2;
+      const y = e.y + yOff;
+      gfx.fillStyle(0x1f2937, 1).fillRect(x, y, w, h);
+      const ratio = Math.max(0, Math.min(1, e.hp / e.hpMax));
+      gfx.fillStyle(0xef4444, 1).fillRect(x, y, w * ratio, h);
     });
   }
 
@@ -808,8 +835,6 @@ export default class MainScene extends Phaser.Scene {
     const wasBoss = enemy.isBoss;
     const burstColor = enemy.fillColor ?? 0xffffff;
     const burstScale = wasBoss ? 2.2 : 1;
-    if (enemy.hpBar) enemy.hpBar.destroy();
-    if (enemy.hpBarBg) enemy.hpBarBg.destroy();
     enemy.destroy();
     spawnDeathBurst(this, x, y, burstColor, burstScale);
     for (let i = 0; i < dropCount; i++) {
@@ -873,7 +898,8 @@ export default class MainScene extends Phaser.Scene {
   dropCoin(x, y, isLucky) {
     const coin = this.add.circle(x, y, isLucky ? 7 : 5, 0xfde047);
     if (isLucky) coin.setStrokeStyle(2, 0xf97316);
-    coin.value = isLucky ? 3 : 1;
+    const baseValue = isLucky ? 3 : 1;
+    coin.value = baseValue * (this.stageMul.coin ?? 1);
     this.coinSprites.add(coin);
     coin.body.setCircle(coin.radius);
   }
@@ -944,7 +970,7 @@ export default class MainScene extends Phaser.Scene {
 
 export function makeGameConfig(parent) {
   return {
-    type: Phaser.AUTO,
+    type: Phaser.WEBGL,
     parent,
     scale: {
       mode: Phaser.Scale.RESIZE,
@@ -955,6 +981,15 @@ export function makeGameConfig(parent) {
     physics: {
       default: "arcade",
       arcade: { gravity: { y: 0 } },
+    },
+    fps: {
+      target: 60,
+      forceSetTimeOut: false,
+    },
+    render: {
+      antialias: false,
+      pixelArt: false,
+      powerPreference: "high-performance",
     },
     scene: [MainScene],
   };

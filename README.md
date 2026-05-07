@@ -39,6 +39,12 @@ npx cap sync ios             # web 成果物を iOS プロジェクトに反映
 npx cap open ios             # Xcode 起動 → ▶ で実行
 ```
 
+ビルド + sync を 1 行で (Xcode はすでに開いている前提でコード変更だけ反映したいとき):
+
+```bash
+cd ~/claude_work/skill-tree-app/frontend && VITE_BASE=./ npm run build && npx cap sync ios
+```
+
 `vite.config.js` の base path は `VITE_BASE` 環境変数で上書きできる:
 - Web (GitHub Pages): デフォルトの `/skill-tree-app/`
 - iOS (Capacitor): `./` (ファイル相対)
