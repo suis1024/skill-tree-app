@@ -151,7 +151,7 @@ export function computeStats(skillLevels) {
     weapons:          equippedWeapons(skillLevels),
     bombRadiusMul:    1 + lv("bomb_radius")  * 0.20,
     bombDamageMul:    1 + lv("bomb_damage")  * 0.25,
-    bombRange:        350 * (1 + lv("bomb_range")    * 0.20),
+    bombRange:        200 * (1 + lv("bomb_range")    * 0.20),
     thunderChainAdd:  lv("thunder_chain"),
     thunderDamageMul: 1 + lv("thunder_damage") * 0.25,
     thunderRange:     220 * (1 + lv("thunder_range") * 0.20),
