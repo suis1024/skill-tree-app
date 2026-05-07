@@ -68,23 +68,36 @@ function applyVolume() {
   }
 }
 
+// バックグラウンド復帰時に「現在トラック以外」が勝手に再生再開して二重再生に
+// なるのを防ぐ。foreground に戻ったら currentKey 以外を強制停止する。
+if (typeof document !== "undefined") {
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    audioByKey.forEach((el, key) => {
+      if (key !== currentKey && !el.paused) {
+        el.pause();
+        el.currentTime = 0;
+      }
+    });
+  });
+}
+
 // 指定キーのトラックに切り替えて再生する。同じキーなら何もしない。
 export function playTrack(key) {
   if (!TRACKS[key]) return;
   if (currentKey === key) {
-    // 既に再生中ならそのまま (iOS で confirm 後に paused 化することがあるので念のため再生試行)
+    // 既に同キー再生中ならそのまま (iOS で confirm/バックグラウンド復帰で paused 化
+    // することがあるので念のため再生試行)
     const el = audioByKey.get(key);
     if (el && el.paused) el.play().catch(() => {});
     return;
   }
-  // 既存トラックを停止
-  if (currentKey) {
-    const prev = audioByKey.get(currentKey);
-    if (prev) {
-      prev.pause();
-      prev.currentTime = 0;
-    }
-  }
+  // 全トラック強制停止 (iOS バックグラウンド復帰で旧 audio が勝手に再開して
+  // 二重再生になることがあるため、currentKey 以外も含めて全部止める)。
+  audioByKey.forEach((el) => {
+    if (!el.paused) el.pause();
+    el.currentTime = 0;
+  });
   currentKey = key;
   const el = ensureAudio(key);
   if (!el) return;
