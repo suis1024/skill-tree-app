@@ -125,16 +125,17 @@ export default class MainScene extends Phaser.Scene {
     const small = { ...style, fontSize: "14px", color: "#94a3b8" };
     const top = this.registry.get("safeAreaTop") || 12;
     this.hudTop = top;
+    const dpr = window.devicePixelRatio || 1;
     // 左上の HP は小さめで補助表示
-    this.hpText = this.add.text(16, top, "", small).setDepth(2000);
-    this.coinText = this.add.text(16, top + 18, "", style).setDepth(2000);
+    this.hpText = this.add.text(16, top, "", small).setDepth(2000).setResolution(dpr);
+    this.coinText = this.add.text(16, top + 18, "", style).setDepth(2000).setResolution(dpr);
     this.stageText = this.add.text(this.worldWidth / 2, top, `STAGE ${this.stageNumber}`, style)
-      .setOrigin(0.5, 0).setDepth(2000);
-    this.timeText = this.add.text(this.worldWidth / 2, top + 24, "", style).setOrigin(0.5, 0).setDepth(2000);
+      .setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
+    this.timeText = this.add.text(this.worldWidth / 2, top + 24, "", style).setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
     this.bossHpBar = null;
     this.bossHpBarBg = null;
     this.bossLabel = this.add.text(this.worldWidth / 2, top + 48, "", small)
-      .setOrigin(0.5, 0).setDepth(2000);
+      .setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
 
     // プレイヤー追従 HP バー (自機の下に出る、画面下端に近いときは上に出す)
     this.playerHpBarW = 36;

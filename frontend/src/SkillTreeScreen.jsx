@@ -197,6 +197,15 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
   const maxed = cost === null;
   const unlockable = isUnlockable(skill, skillLevels);
   const affordable = !maxed && unlockable && coins >= cost;
+  // 子の名前は短いことが多い (例: 「速度」) ので、武器解放スキル直系なら親名を前置
+  const parent = skill.requires ? SKILL_BY_ID[skill.requires.id] : null;
+  const isWeaponChild = parent && parent.id?.startsWith("wpn_unlock_");
+  const isPistolChild = parent && skill.id?.startsWith("pistol_");
+  const fullName = isWeaponChild
+    ? `${parent.name}の${skill.name}`
+    : isPistolChild
+    ? `ピストルの${skill.name}`
+    : skill.name;
   const reqText = skill.requires
     ? `要: ${SKILL_BY_ID[skill.requires.id]?.name ?? skill.requires.id} Lv${skill.requires.level}`
     : null;
@@ -206,7 +215,7 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
       <div style={styles.detailHeader}>
         <div>
           <span style={{ ...styles.catTag, background: cat.color, color: "#0f172a" }}>{cat.label}</span>
-          <strong style={{ marginLeft: 8, fontSize: 16 }}>{skill.name}</strong>
+          <strong style={{ marginLeft: 8, fontSize: 16 }}>{fullName}</strong>
         </div>
         <button onClick={onClose} style={styles.closeBtn}>×</button>
       </div>

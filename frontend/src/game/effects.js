@@ -84,7 +84,8 @@ export function popCoinText(scene, x, y, amount) {
       fontStyle: "bold",
     })
     .setOrigin(0.5, 1)
-    .setDepth(1900);
+    .setDepth(1900)
+    .setResolution(window.devicePixelRatio || 1);
   scene.tweens.add({
     targets: txt,
     y: y - 24,
@@ -111,7 +112,8 @@ export function popDamageText(scene, x, y, dmg, isCrit = false) {
       fontStyle: "bold",
     })
     .setOrigin(0.5, 1)
-    .setDepth(1900);
+    .setDepth(1900)
+    .setResolution(window.devicePixelRatio || 1);
   scene.tweens.add({
     targets: txt,
     y: y - 40,
