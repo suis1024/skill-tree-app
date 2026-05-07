@@ -65,6 +65,17 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
     onAbort?.();
   };
 
+  // 開発者用: ボス即出し
+  const handleSummonBoss = () => {
+    const scene = gameRef.current?.scene?.getScene("MainScene");
+    if (!scene) return;
+    scene.scene.resume();
+    setPaused(false);
+    if (scene.phase === "wave" && typeof scene.startBossPhase === "function") {
+      scene.startBossPhase();
+    }
+  };
+
   return (
     <>
       <div
@@ -113,6 +124,11 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
             <p style={{ fontSize: 12, color: "#94a3b8", marginTop: 12 }}>
               放棄すると今回稼いだコインは破棄されます。
             </p>
+
+            <div style={settingsBlock}>
+              <h3 style={settingsTitle}>開発者</h3>
+              <button style={cheatBtn} onClick={handleSummonBoss}>👹 ボスを呼ぶ</button>
+            </div>
           </div>
         </div>
       )}
@@ -184,6 +200,19 @@ const secondaryBtn = {
   fontSize: 14,
   borderRadius: 6,
   cursor: "pointer",
+};
+
+const cheatBtn = {
+  display: "block",
+  width: "100%",
+  background: "#3730a3",
+  color: "#e0e7ff",
+  border: "none",
+  padding: "10px",
+  fontSize: 14,
+  borderRadius: 6,
+  cursor: "pointer",
+  marginTop: 8,
 };
 
 const settingsBlock = {
