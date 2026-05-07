@@ -3,7 +3,26 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import {
   SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, SECTION_HEADERS, nextCost, isUnlockable,
 } from "./game/skills";
-import { GearIcon, BackIcon, CoinIcon, PlayIcon, CloseIcon, LockIcon } from "./icons";
+import { GearIcon, BackIcon, PlayIcon, CloseIcon, LockIcon } from "./icons";
+import { PAL, PX_FONT, JP_FONT, NodeIcon, Coin } from "./pixel/PixelArt";
+
+// スキル ID から NodeIcon の kind を推定。
+function iconKindFor(id) {
+  if (id.startsWith("pistol_")) return "sword";
+  if (id.startsWith("bomb_") || id === "wpn_unlock_bomb") return "bomb";
+  if (id.startsWith("thunder_") || id === "wpn_unlock_thunder") return "bolt";
+  if (id.startsWith("homing_") || id === "wpn_unlock_homing") return "target";
+  if (id.startsWith("orbital_") || id === "wpn_unlock_orbital") return "orbit";
+  if (id === "def_hp" || id === "def_regen") return "heart";
+  if (id === "def_speed") return "boots";
+  if (id === "def_armor") return "shield";
+  if (id === "def_revive") return "revive";
+  if (id === "eco_coin" || id === "eco_start") return "coin";
+  if (id === "eco_magnet" || id === "eco_lucky") return "star";
+  if (id === "eco_retry") return "revive";
+  if (id === "pistol_pierce") return "pierce";
+  return "target";
+}
 
 export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onBackToTitle, onOpenSettings, busy }) {
   const [selectedId, setSelectedId] = useState(null);
@@ -20,34 +39,35 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
 
   return (
     <div style={styles.wrap}>
-      <header style={styles.headerTop}>
-        {onBackToTitle && (
-          <button type="button" onClick={onBackToTitle} style={styles.backButton} aria-label="戻る">
-            <BackIcon width={18} height={18} />
-            <span style={styles.backLabel}>戻る</span>
-          </button>
-        )}
-        <h2 style={styles.headerTitle}>スキルツリー</h2>
-        {onOpenSettings && (
-          <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.iconButton}>
-            <GearIcon width={20} height={20} />
-          </button>
-        )}
-      </header>
-      <div style={styles.headerBottom}>
-        <div style={styles.coinPill}>
-          <CoinIcon width={16} height={16} />
-          <strong style={styles.coinValue}>{coins.toLocaleString()}</strong>
+      <div style={styles.headerBox}>
+        <div style={styles.headerTop}>
+          {onBackToTitle ? (
+            <button type="button" onClick={onBackToTitle} style={styles.headerSideBtn} aria-label="戻る">
+              <BackIcon width={14} height={14} /><span>BACK</span>
+            </button>
+          ) : <span style={{ width: 60 }} />}
+          <div style={styles.headerTitle}>SKILL TREE</div>
+          {onOpenSettings ? (
+            <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.headerSideBtn}>
+              <GearIcon width={14} height={14} />
+            </button>
+          ) : <span style={{ width: 36 }} />}
         </div>
-        <button
-          type="button"
-          onClick={onStart}
-          disabled={busy}
-          style={styles.startButton}
-        >
-          <span>ステージ選択</span>
-          <PlayIcon width={14} height={14} />
-        </button>
+        <div style={styles.headerBottom}>
+          <div style={styles.coinPill}>
+            <Coin scale={2} />
+            <span style={styles.coinValue}>{coins.toLocaleString()}</span>
+          </div>
+          <button
+            type="button"
+            onClick={onStart}
+            disabled={busy}
+            style={styles.startButton}
+          >
+            <PlayIcon width={12} height={12} />
+            <span>STAGE</span>
+          </button>
+        </div>
       </div>
 
       <div style={styles.treeWrap}>
@@ -72,110 +92,131 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
         >
           {/* カテゴリ見出し */}
           {SECTION_HEADERS.map((h) => {
-            const color = CATEGORIES[h.category]?.color || "#94a3b8";
+            const color = CATEGORIES[h.category]?.color || PAL.bone2;
+            const upper = (h.label || "").toUpperCase();
             return (
               <g key={`hdr-${h.category}`}>
-                <line
-                  x1={20} y1={h.y + 18}
-                  x2={TREE_VIEWBOX.width - 20} y2={h.y + 18}
-                  stroke={color}
-                  strokeOpacity={0.3}
-                  strokeWidth={1}
+                <rect
+                  x={0} y={h.y + 18}
+                  width={TREE_VIEWBOX.width} height={2}
+                  fill={color} fillOpacity={0.4}
                 />
                 <text
                   x={TREE_VIEWBOX.width / 2}
-                  y={h.y + 14}
+                  y={h.y + 12}
                   textAnchor="middle"
-                  fontSize={20}
-                  fontWeight="bold"
+                  fontFamily={PX_FONT}
+                  fontSize={11}
+                  letterSpacing={2}
                   fill={color}
-                >{h.label}</text>
+                >{`◆ ${h.label} ◆`}</text>
               </g>
             );
           })}
 
-          {/* 接続線 */}
+          {/* 接続線 (90 度エルボー風) */}
           {edges.map((e, i) => {
-            const childLv = skillLevels[e.childId] || 0;
             const parentLv = skillLevels[e.parentId] || 0;
             const reqLv = SKILL_BY_ID[e.childId].requires.level;
             const reached = parentLv >= reqLv;
+            const childCat = CATEGORIES[SKILL_BY_ID[e.childId].category];
+            const stroke = reached ? childCat.color : PAL.shadow;
             return (
-              <line
-                key={i}
-                x1={e.from.x}
-                y1={e.from.y}
-                x2={e.to.x}
-                y2={e.to.y}
-                stroke={reached ? "#64748b" : "#1e293b"}
-                strokeWidth={3}
-              />
+              <g key={i} stroke={stroke} strokeWidth={3} fill="none" shapeRendering="crispEdges">
+                <line x1={e.from.x} y1={e.from.y} x2={e.from.x} y2={e.to.y} />
+                <line x1={e.from.x} y1={e.to.y}   x2={e.to.x}   y2={e.to.y} />
+              </g>
             );
           })}
 
-          {/* ノード */}
+          {/* ノード (矩形ピクセル風) */}
           {SKILLS.map((s) => {
             const lv = skillLevels[s.id] || 0;
             const cat = CATEGORIES[s.category];
             const unlockable = isUnlockable(s, skillLevels);
             const isMaxed = lv >= s.maxLevel;
             const isOwned = lv > 0;
-            const fill = isOwned ? cat.color : unlockable ? "#0f172a" : "#1e293b";
-            const stroke = unlockable ? cat.color : "#475569";
+            const isLocked = !unlockable;
             const isSelected = selectedId === s.id;
+            const r = nodeRadius;
+            const fill = isOwned ? cat.color : isLocked ? PAL.ink2 : PAL.ink;
+            const stroke = isLocked ? PAL.shadow : cat.color;
             return (
               <g
                 key={s.id}
                 onClick={() => setSelectedId(s.id)}
                 style={{ cursor: "pointer" }}
+                shapeRendering="crispEdges"
               >
-                <circle
-                  cx={s.pos.x}
-                  cy={s.pos.y}
-                  r={nodeRadius + (isSelected ? 4 : 0)}
-                  fill={fill}
-                  stroke={isSelected ? "#fde047" : stroke}
-                  strokeWidth={isSelected ? 4 : 2.5}
-                />
-                {isMaxed && (
-                  <circle
-                    cx={s.pos.x}
-                    cy={s.pos.y}
-                    r={nodeRadius - 6}
-                    fill="none"
-                    stroke="#fde047"
-                    strokeWidth={2}
+                {/* 外枠 (選択時はゴールドのリング) */}
+                {isSelected && (
+                  <rect
+                    x={s.pos.x - r - 4} y={s.pos.y - r - 4}
+                    width={r * 2 + 8} height={r * 2 + 8}
+                    fill="none" stroke={PAL.gold} strokeWidth={2}
                   />
                 )}
-                {!unlockable && (
-                  <g
-                    transform={`translate(${s.pos.x - 8}, ${s.pos.y - 8})`}
-                    fill="none"
-                    stroke="#cbd5e1"
-                    strokeWidth={1.6}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="2" y="7" width="12" height="8" rx="1.5" />
-                    <path d="M4.5 7 V4.5 a3.5 3.5 0 0 1 7 0 V7" />
+                <rect
+                  x={s.pos.x - r} y={s.pos.y - r}
+                  width={r * 2} height={r * 2}
+                  fill={fill} stroke={stroke} strokeWidth={3}
+                />
+                {/* 内側のインキ枠 */}
+                <rect
+                  x={s.pos.x - r + 4} y={s.pos.y - r + 4}
+                  width={r * 2 - 8} height={r * 2 - 8}
+                  fill={PAL.ink} fillOpacity={isOwned ? 0.2 : 1}
+                />
+                {/* アイコン */}
+                <foreignObject
+                  x={s.pos.x - 12} y={s.pos.y - 14}
+                  width={24} height={24}
+                  style={{ overflow: "visible", pointerEvents: "none" }}
+                >
+                  <div style={{
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    width: 24, height: 24,
+                    opacity: isLocked ? 0.4 : 1,
+                  }}>
+                    <NodeIcon kind={iconKindFor(s.id)} scale={2} />
+                  </div>
+                </foreignObject>
+                {/* Lv バッジ or ロック */}
+                {!isLocked && (
+                  <g>
+                    <rect
+                      x={s.pos.x + r - 16} y={s.pos.y + r - 11}
+                      width={22} height={13}
+                      fill={PAL.ink} stroke={cat.color} strokeWidth={1.5}
+                    />
+                    <text
+                      x={s.pos.x + r - 5} y={s.pos.y + r - 1}
+                      textAnchor="middle"
+                      fontFamily={PX_FONT} fontSize={8}
+                      fill={isMaxed ? PAL.gold : cat.color}
+                    >
+                      {isMaxed ? "MAX" : `${lv}/${s.maxLevel}`}
+                    </text>
                   </g>
                 )}
-                {unlockable && (
-                  <text
-                    x={s.pos.x}
-                    y={s.pos.y + 5}
-                    textAnchor="middle"
-                    fontSize={14}
-                    fill={isOwned ? "#0f172a" : "#cbd5e1"}
-                    fontWeight="bold"
-                  >{lv}/{s.maxLevel}</text>
+                {isLocked && (
+                  <g
+                    transform={`translate(${s.pos.x - 7}, ${s.pos.y - 7})`}
+                    fill="none" stroke={PAL.shadow} strokeWidth={1.6}
+                    strokeLinecap="round" strokeLinejoin="round"
+                  >
+                    <rect x="2" y="6" width="11" height="7" />
+                    <path d="M4 6 V4 a3.5 3.5 0 0 1 7 0 V6" />
+                  </g>
                 )}
+                {/* スキル名 */}
                 <text
                   x={s.pos.x}
-                  y={s.pos.y + nodeRadius + 16}
+                  y={s.pos.y + r + 16}
                   textAnchor="middle"
+                  fontFamily={JP_FONT}
                   fontSize={12}
-                  fill="#cbd5e1"
+                  fill={isLocked ? PAL.shadow : PAL.bone}
                 >{s.name}</text>
               </g>
             );
@@ -259,68 +300,69 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
 
 const styles = {
   wrap: {
-    padding: "calc(env(safe-area-inset-top) + 8px) 12px 200px",
-    color: "#e2e8f0",
+    minHeight: "100vh",
+    padding: "calc(env(safe-area-inset-top) + 0px) 0 200px",
+    color: PAL.bone,
+    background: PAL.ink,
+    fontFamily: JP_FONT,
+  },
+  headerBox: {
+    padding: "12px 16px 10px",
+    borderBottom: `2px solid ${PAL.ink2}`,
+    background: `linear-gradient(180deg, ${PAL.ink2}, ${PAL.ink})`,
   },
   headerTop: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     marginBottom: 10, gap: 8,
   },
   headerTitle: {
-    margin: 0,
-    fontSize: 18,
+    fontFamily: PX_FONT,
+    fontSize: 12,
+    color: PAL.gold,
+    letterSpacing: 2,
     flex: 1,
     textAlign: "center",
     whiteSpace: "nowrap",
     minWidth: 0,
   },
-  headerBottom: {
-    display: "flex", alignItems: "center", justifyContent: "space-between",
-    marginBottom: 14, gap: 12,
-  },
-  backButton: {
-    background: "rgba(51,65,85,0.7)", color: "#e2e8f0", border: "1px solid #475569",
-    padding: "8px 12px", borderRadius: 18, fontSize: 13, cursor: "pointer",
-    flexShrink: 0, whiteSpace: "nowrap",
+  headerSideBtn: {
+    background: "transparent",
+    border: "none",
+    color: "#7a6a8a",
+    cursor: "pointer",
+    fontFamily: PX_FONT,
+    fontSize: 9,
+    letterSpacing: 2,
+    padding: "4px 6px",
     display: "inline-flex", alignItems: "center", gap: 4,
-  },
-  backLabel: { fontSize: 13 },
-  iconButton: {
-    background: "rgba(51,65,85,0.7)", color: "#e2e8f0", border: "1px solid #475569",
-    width: 36, height: 36, borderRadius: 18, fontSize: 18, cursor: "pointer",
-    display: "flex", alignItems: "center", justifyContent: "center",
     flexShrink: 0,
   },
-  coinPill: {
-    display: "inline-flex", alignItems: "center", gap: 8,
-    background: "linear-gradient(135deg, #f59e0b, #fbbf24)",
-    color: "#7c2d12",
-    padding: "8px 16px",
-    borderRadius: 20,
-    boxShadow: "0 2px 8px rgba(251,191,36,0.3), inset 0 1px 0 rgba(255,255,255,0.4)",
-    fontWeight: 700,
+  headerBottom: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    gap: 12,
   },
-  coinValue: { fontSize: 18, color: "#451a03" },
+  coinPill: {
+    display: "inline-flex", alignItems: "center", gap: 6,
+    background: PAL.ink2,
+    padding: "5px 10px",
+    boxShadow: `2px 2px 0 ${PAL.goldDark}, 0 0 0 2px ${PAL.gold}`,
+  },
+  coinValue: {
+    fontFamily: PX_FONT, fontSize: 12, color: PAL.gold, letterSpacing: 1,
+  },
   startButton: {
-    background: "linear-gradient(135deg, #16a34a, #22c55e)",
-    color: "#052e16",
-    border: "none",
-    padding: "10px 18px",
-    fontSize: 15,
-    fontWeight: 700,
-    borderRadius: 22,
-    cursor: "pointer",
-    boxShadow: "0 4px 12px rgba(34,197,94,0.4)",
+    fontFamily: PX_FONT, fontSize: 11, letterSpacing: 2,
+    background: PAL.blood, color: PAL.ink, border: "none",
+    padding: "8px 14px", cursor: "pointer",
+    boxShadow: `3px 3px 0 ${PAL.bloodDark}, 0 0 0 2px ${PAL.ink}`,
     flexShrink: 0,
     display: "inline-flex", alignItems: "center", gap: 6,
   },
   treeWrap: {
     width: "100%",
-    background: "radial-gradient(ellipse at center, #1e293b 0%, #0b1220 70%)",
-    borderRadius: 8,
-    border: "1px solid #1e293b",
+    background: PAL.ink,
     overflow: "hidden",
-    aspectRatio: `${1000 / 900}`,
+    aspectRatio: `${TREE_VIEWBOX.width} / ${TREE_VIEWBOX.height}`,
     maxHeight: "70vh",
   },
   svg: { width: "100%", height: "100%", display: "block" },

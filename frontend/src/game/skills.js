@@ -1,9 +1,9 @@
 export const COST_TABLE = [25, 50, 100, 200, 400];
 
 export const CATEGORIES = {
-  weapon:  { label: "武器", color: "#ef4444" },
-  defense: { label: "防御", color: "#3b82f6" },
-  economy: { label: "経済", color: "#22c55e" },
+  weapon:  { label: "武器", color: "#c63838" }, // blood
+  defense: { label: "防御", color: "#5cb8e8" }, // spark
+  economy: { label: "経済", color: "#8fb068" }, // moss
 };
 
 // height は layoutSkills 後に総ノード数から計算される。初期値はダミー。
