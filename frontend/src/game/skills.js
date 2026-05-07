@@ -302,10 +302,10 @@ export function computeStats(skillLevels) {
     bombRange:        200 * (1 + lv("bomb_range")    * 0.20),
     thunderChainAdd:  lv("thunder_chain"),
     thunderDamageMul: 1 + lv("thunder_damage") * 0.25,
-    thunderRange:     220 * (1 + lv("thunder_range") * 0.20),
+    thunderRange:     180 * (1 + lv("thunder_range") * 0.20),
     homingCountAdd:   lv("homing_count"),
     homingDamageMul:  1 + lv("homing_damage")  * 0.25,
-    homingRange:      400 * (1 + lv("homing_range")  * 0.20),
+    homingRange:      280 * (1 + lv("homing_range")  * 0.20),
     orbitalCountAdd:  lv("orbital_count"),
     orbitalDamageMul: 1 + lv("orbital_damage") * 0.25,
   };
