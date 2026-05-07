@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Skill Tree Shooter — Designs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DotGothic16&display=swap" rel="stylesheet" />
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #f0eee9; }
+  * { box-sizing: border-box; }
+  /* Make pixel art crisp everywhere */
+  img, svg { image-rendering: pixelated; -ms-interpolation-mode: nearest-neighbor; }
+</style>
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="pixel-art.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+<script type="text/babel" src="title-v2.jsx"></script>
+<script type="text/babel" src="gameplay.jsx"></script>
+<script type="text/babel" src="app-icon.jsx"></script>
+
+<script type="text/babel">
+function Phone({ children }) {
+  // Use an iPhone frame, dark mode, with content area filled by our screen.
+  return (
+    <IOSDevice width={390} height={844} dark>
+      <div style={{ position: 'absolute', inset: 0 }}>{children}</div>
+    </IOSDevice>
+  );
+}
+
+function App() {
+  return (
+    <DesignCanvas>
+      <DCSection id="title" title="Title Screen v2" subtitle="Gameplay C と統一: ネオン+羊皮紙+CRT · 3案">
+        <DCArtboard id="title-altar" label="A · 祭壇 (Altar)" width={390} height={844}>
+          <Phone><TitleAltar /></Phone>
+        </DCArtboard>
+        <DCArtboard id="title-tree" label="B · 灰の樹 (Tree of Ash)" width={390} height={844}>
+          <Phone><TitleTree /></Phone>
+        </DCArtboard>
+        <DCArtboard id="title-arcade" label="C · アーケード (Press Start)" width={390} height={844}>
+          <Phone><TitleArcade /></Phone>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="skill-tree" title="Skill Tree" subtitle="武器・防御・経済の永続強化 · 2案">
+        <DCArtboard id="tree-a" label="A · タブ + カードノード" width={390} height={844}>
+          <Phone><SkillTreeA /></Phone>
+        </DCArtboard>
+        <DCArtboard id="tree-b" label="B · 縦長ピクセル枝分かれ" width={390} height={844}>
+          <Phone><SkillTreeB /></Phone>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="gameplay" title="Gameplay Screen" subtitle="多角形はそのまま · 塗り/HUD/背景のビジュアル改修 · 3案">
+        <DCArtboard id="gp-a" label="A · 現状 (比較用)" width={390} height={844}>
+          <Phone><GameplayCurrent /></Phone>
+        </DCArtboard>
+        <DCArtboard id="gp-b" label="B · ダーク化 + ピクセルHUD + グリッド床" width={390} height={844}>
+          <Phone><GameplayB /></Phone>
+        </DCArtboard>
+        <DCArtboard id="gp-c" label="C · ネオングロウ + 羊皮紙コア + CRT" width={390} height={844}>
+          <Phone><GameplayC /></Phone>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="icons" title="iOS App Icon" subtitle="App Store / ホーム画面 · 1024×1024 想定 · 3案">
+        <DCArtboard id="icon-a" label="A · ヒーロー + 樹" width={300} height={300}>
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0eee9' }}>
+            <IconA size={240} />
+          </div>
+        </DCArtboard>
+        <DCArtboard id="icon-b" label="B · 大きな S" width={300} height={300}>
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0eee9' }}>
+            <IconB size={240} />
+          </div>
+        </DCArtboard>
+        <DCArtboard id="icon-c" label="C · 抽象ノードグラフ" width={300} height={300}>
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0eee9' }}>
+            <IconC size={240} />
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCSection id="icons-grid" title="Icons in Context" subtitle="ホーム画面のサイズ感確認">
+        <DCArtboard id="home-grid" label="Home screen mockup" width={390} height={300}>
+          <div style={{ width: '100%', height: '100%', background: '#1a0820',
+            padding: 24, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18, alignContent: 'center' }}>
+            <IconA size={70} />
+            <div style={{ width: 70, height: 70, background: '#f0eee9', borderRadius: 16 }} />
+            <IconB size={70} />
+            <div style={{ width: 70, height: 70, background: '#f0eee9', borderRadius: 16 }} />
+            <div style={{ width: 70, height: 70, background: '#f0eee9', borderRadius: 16 }} />
+            <IconC size={70} />
+            <div style={{ width: 70, height: 70, background: '#f0eee9', borderRadius: 16 }} />
+            <div style={{ width: 70, height: 70, background: '#f0eee9', borderRadius: 16 }} />
+          </div>
+        </DCArtboard>
+      </DCSection>
+
+      <DCPostIt top={20} left={1380} rotate={3} width={220}>
+        パレット: 漆黒 + 羊皮紙 + 血赤 + 雷青 + 苔緑。font は Press Start 2P + DotGothic16 (Google Fonts)。
+      </DCPostIt>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
