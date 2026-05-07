@@ -7,12 +7,13 @@ export const ENEMY_TYPES = {
   grunt: {
     color: 0xef4444,
     size: 24,
-    hp: 30,
+    hp: 20,
     speed: 90,
-    contactDamage: 10,
+    contactDamage: 18,
     coinDrop: 1,
     canShoot: false,
     shape: "rect",
+    isFlocker: true, // 群れボーナス対象
   },
   swift: {
     color: 0x60a5fa,
@@ -34,6 +35,7 @@ export const ENEMY_TYPES = {
     coinDrop: 2,
     canShoot: false,
     shape: "rect",
+    leadAim: true, // プレイヤーの未来位置を狙うリード追跡
   },
   shooter: {
     color: 0xfbbf24,

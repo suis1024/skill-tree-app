@@ -245,14 +245,54 @@ export default class MainScene extends Phaser.Scene {
       body.setVelocity(0, 0);
     }
 
+    // flocker (grunt) の群れボーナス事前計算: 半径 80px 以内の同種数を数える。
+    // 仲間 3 体以上で +20% 速度、5 体以上で +35% にスケール。
+    const FLOCK_RADIUS_SQ = 80 * 80;
+    const flockers = [];
+    this.enemies.children.iterate((e) => {
+      if (e && e.active && e.isFlocker) flockers.push(e);
+    });
+    for (let i = 0; i < flockers.length; i++) {
+      let n = 0;
+      const a = flockers[i];
+      for (let j = 0; j < flockers.length; j++) {
+        if (i === j) continue;
+        const b = flockers[j];
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        if (dx * dx + dy * dy <= FLOCK_RADIUS_SQ) n++;
+      }
+      a.flockBonus = n >= 5 ? 1.35 : n >= 3 ? 1.20 : 1.0;
+    }
+
+    // プレイヤーの現在速度 (リード予測で使う)
+    const playerVx = this.player.body ? this.player.body.velocity.x : 0;
+    const playerVy = this.player.body ? this.player.body.velocity.y : 0;
+
     this.enemies.children.iterate((enemy) => {
       if (!enemy || !enemy.active || !enemy.body) return;
       if (enemy.isSpawning) return;
-      const dx = this.player.x - enemy.x;
-      const dy = this.player.y - enemy.y;
+
+      // リード予測 (tank): プレイヤーの未来位置を狙う
+      let targetX = this.player.x;
+      let targetY = this.player.y;
+      if (enemy.leadAim && enemy.speed > 0) {
+        const rawDist = Math.sqrt(
+          (this.player.x - enemy.x) ** 2 + (this.player.y - enemy.y) ** 2,
+        );
+        const t = Math.min(1.5, rawDist / enemy.speed); // 秒。1.5s でクランプ
+        targetX = this.player.x + playerVx * t;
+        targetY = this.player.y + playerVy * t;
+      }
+      const dx = targetX - enemy.x;
+      const dy = targetY - enemy.y;
       const dist = Math.sqrt(dx * dx + dy * dy) || 1;
       const nx = dx / dist;
       const ny = dy / dist;
+
+      // 群れボーナスで速度を一時的に増す (この iter 内だけ)
+      const speedMul = enemy.flockBonus || 1.0;
+      const effSpeed = enemy.speed * speedMul;
 
       if (enemy.isBoss) {
         const p = enemy.pattern;
@@ -291,7 +331,7 @@ export default class MainScene extends Phaser.Scene {
           this.fireEnemyBullet(enemy, nx, ny);
         }
       } else {
-        enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
+        enemy.body.setVelocity(nx * effSpeed, ny * effSpeed);
       }
 
       // 見た目の rotation 制御。turret / charger は専用 update で設定済みなのでスキップ。
@@ -570,6 +610,8 @@ export default class MainScene extends Phaser.Scene {
     enemy.typeId = typeId;
     enemy.shape = def.shape;
     enemy.aimByVelocity = !!def.aimByVelocity;
+    enemy.isFlocker = !!def.isFlocker;
+    enemy.leadAim = !!def.leadAim;
     if (def.shape === "rect") {
       // grunt: ランダム方向に一定速度で自転
       const sign = Math.random() < 0.5 ? -1 : 1;
@@ -717,13 +759,30 @@ export default class MainScene extends Phaser.Scene {
   pickSpawnPositionInside(size) {
     const margin = size + 8;
     const MIN_DIST = 120;
+    // ステージ 6 以降は「プレイヤーから遠い側」優先。隅でぐるぐる回避を抑止する目的。
+    // 複数候補を引いて、その中で最遠を選ぶ (= プレイヤー反対側に偏る)。
+    const farMode = this.stageNumber >= 6;
+    const trials = farMode ? 8 : 1;
+
+    let bestX = margin;
+    let bestY = margin;
+    let bestDist = -1;
     for (let i = 0; i < 20; i++) {
       const x = Phaser.Math.Between(margin, this.worldWidth - margin);
       const y = Phaser.Math.Between(margin, this.worldHeight - margin);
       const d = Math.hypot(this.player.x - x, this.player.y - y);
-      if (d >= MIN_DIST) return { x, y };
+      if (d < MIN_DIST) continue;
+
+      if (!farMode) return { x, y };
+
+      if (d > bestDist) {
+        bestDist = d;
+        bestX = x;
+        bestY = y;
+      }
+      if (i + 1 >= trials && bestDist > 0) return { x: bestX, y: bestY };
     }
-    // 20 回試して失敗したら諦めて画面端を返す (ほぼ起こらないはず)
+    if (bestDist > 0) return { x: bestX, y: bestY };
     return { x: margin, y: margin };
   }
 
