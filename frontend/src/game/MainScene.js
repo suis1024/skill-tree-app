@@ -572,6 +572,10 @@ export default class MainScene extends Phaser.Scene {
       boss.aimByVelocity = true; // 矢じり: 進行方向を向く
     }
     this.boss = boss;
+    this.bossSpawnedAt = this.time.now;
+    // ボス戦のエスカレートに使う基準値 (撃破ペース計算用)
+    boss.baseShotIntervalMs = def.shotIntervalMs;
+    boss.baseBulletCount = def.bulletCount || 8;
     // プレイヤーがボススポーン位置に重なってたら一瞬無敵 (即死防止)
     this.invincibleUntil = Math.max(this.invincibleUntil, this.time.now + 800);
     this.player.setAlpha(0.4);
@@ -579,16 +583,38 @@ export default class MainScene extends Phaser.Scene {
     this.startBossSubWave();
   }
 
-  // ボス戦中の雑魚 spawn。grunt / shooter のみ、上限あり、3 秒間隔。
+  // ボス戦経過時間 (ms) からのエスカレーション係数。
+  // 30/60/90/120 秒の節目で段階的に厳しくなる。
+  getBossEscalation() {
+    const elapsed = this.bossSpawnedAt ? this.time.now - this.bossSpawnedAt : 0;
+    let stage = 0;
+    if (elapsed >= 120000) stage = 4;
+    else if (elapsed >= 90000) stage = 3;
+    else if (elapsed >= 60000) stage = 2;
+    else if (elapsed >= 30000) stage = 1;
+    return {
+      stage,
+      shotIntervalMul: [1.0, 1.0, 0.7, 0.55, 0.45][stage],
+      bulletCountAdd:  [0,   0,   0,   2,    3   ][stage],
+      subWaveMul:      [1.0, 0.8, 0.7, 0.55, 0.45][stage],
+      subWaveAdd:      [0,   2,   4,   6,    8   ][stage],
+    };
+  }
+
+  // ボス戦中の雑魚 spawn。grunt / shooter のみ、上限・インターバルは時間で短縮。
   startBossSubWave() {
-    const upperLimit = this.stageNumber >= 6 ? 10 : 6;
-    const intervalMs = this.stageNumber >= 6 ? 2400 : 3000;
+    this.bossSubWaveLastAt = this.time.now;
     this.bossSubWaveTimer = this.time.addEvent({
-      delay: intervalMs,
+      delay: 500, // 0.5 秒ごとに「そろそろ spawn?」を判定
       loop: true,
       callback: () => {
         if (this.phase !== "boss" || this.gameOverActive) return;
-        // ボス本体除く現在の雑魚数をカウント
+        const baseUpper = this.stageNumber >= 6 ? 10 : 6;
+        const baseInterval = this.stageNumber >= 6 ? 2400 : 3000;
+        const esc = this.getBossEscalation();
+        const upperLimit = baseUpper + esc.subWaveAdd;
+        const intervalMs = baseInterval * esc.subWaveMul;
+        if (this.time.now - this.bossSubWaveLastAt < intervalMs) return;
         let alive = 0;
         this.enemies.children.iterate((e) => {
           if (e && e.active && !e.isBoss) alive++;
@@ -596,6 +622,7 @@ export default class MainScene extends Phaser.Scene {
         if (alive >= upperLimit) return;
         const type = Math.random() < 0.6 ? "grunt" : "shooter";
         this.spawnEnemy(type);
+        this.bossSubWaveLastAt = this.time.now;
       },
     });
   }
@@ -743,6 +770,10 @@ export default class MainScene extends Phaser.Scene {
   updateBossPattern(boss, nx, ny, delta) {
     const now = this.time.now;
     const elapsed = now - boss.patternStartAt;
+    // 時間経過によるエスカレーション
+    const esc = this.getBossEscalation();
+    boss.shootIntervalMs = Math.max(150, Math.round((boss.baseShotIntervalMs || 1000) * esc.shotIntervalMul));
+    boss.bulletCount = (boss.baseBulletCount || 8) + esc.bulletCountAdd;
     const margin = boss.size * 0.6 + 20;
     const minX = margin;
     const maxX = this.worldWidth - margin;
