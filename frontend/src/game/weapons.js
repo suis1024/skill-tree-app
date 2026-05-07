@@ -33,7 +33,7 @@ function firePistolFan(scene, baseAngle, count) {
   const stats = scene.stats;
   const spread = (count - 1) * 0.18;
   const start = baseAngle - spread / 2;
-  const baseDamage = 10 * stats.damageMul;
+  const baseDamage = 10 * (stats.pistolDamageMul ?? 1);
   const speed = 500;
   for (let i = 0; i < count; i++) {
     const angle = count === 1 ? baseAngle : start + (spread * i) / (count - 1);
@@ -76,7 +76,7 @@ function fireBomb(scene) {
   const startX = scene.player.x;
   const startY = scene.player.y;
   const radius = 90 * (stats.bombRadiusMul ?? 1);
-  const damage = 30 * stats.damageMul * (stats.bombDamageMul ?? 1);
+  const damage = 30 * (stats.bombDamageMul ?? 1);
   const flightMs = 600;
   const peakOffset = -60;
 
@@ -116,7 +116,7 @@ function fireThunder(scene) {
   const distToFirst = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, first.x, first.y);
   if (distToFirst > (stats.thunderRange ?? Infinity)) return;
   playSe(scene, AUDIO_KEYS.seThunder.key, { volume: 0.4, minIntervalMs: 150 });
-  const damage = 20 * stats.damageMul * (stats.thunderDamageMul ?? 1);
+  const damage = 20 * (stats.thunderDamageMul ?? 1);
   const chainCount = 3 + (stats.thunderChainAdd ?? 0);
   const chainRadius = 160;
 
@@ -201,7 +201,7 @@ function fireHoming(scene) {
   if (!nearest) return;
   const distNearest = Phaser.Math.Distance.Between(scene.player.x, scene.player.y, nearest.x, nearest.y);
   if (distNearest > (stats.homingRange ?? Infinity)) return;
-  const damage = 10 * stats.damageMul * (stats.homingDamageMul ?? 1);
+  const damage = 10 * (stats.homingDamageMul ?? 1);
   const speed = 280;
   const count = 1 + (stats.homingCountAdd ?? 0);
   if (count > 0) playSe(scene, AUDIO_KEYS.seHoming.key, { volume: 0.3, minIntervalMs: 150 });
@@ -226,7 +226,7 @@ function fireHoming(scene) {
 function ensureOrbital(scene) {
   const stats = scene.stats;
   const expectedCount = 2 + (stats.orbitalCountAdd ?? 0);
-  const damage = 10 * stats.damageMul * (stats.orbitalDamageMul ?? 1);
+  const damage = 10 * (stats.orbitalDamageMul ?? 1);
   if (scene.orbitalGroup && scene.orbitalGroup.length === expectedCount) return;
   // 数が変わったら作り直し (実戦中はスキル変動しないので初回のみここに来る)
   if (scene.orbitalGroup) scene.orbitalGroup.forEach((o) => o.destroy());

@@ -1,85 +1,77 @@
 export const COST_TABLE = [10, 25, 50, 100, 200];
 
 export const CATEGORIES = {
-  weapon:  { label: "武器", color: "#a78bfa" },
-  attack:  { label: "攻撃", color: "#ef4444" },
+  weapon:  { label: "武器", color: "#ef4444" },
   defense: { label: "防御", color: "#3b82f6" },
   economy: { label: "経済", color: "#22c55e" },
 };
-
-// ツリーレイアウト用座標 (論理座標、SVG にマップ)。
-// レイアウト: 中央に「攻撃」、左に「武器」、右上に「防御」、右下に「経済」を配置。
-// 縦は y、横は x。原点は左上。
 
 // height は layoutSkills 後に総ノード数から計算される。初期値はダミー。
 export const TREE_VIEWBOX = { width: 480, height: 1800 };
 
 // requires: 親スキルが指定 level 以上のときだけ取得可能。
 // アンロック系 (maxLevel: 1) は「装備武器の解放」を表す。
-// pos は SVG 上の座標。
+// pos は SVG 上の座標 (layoutSkills が上書き)。
 export const SKILLS = [
-  // ===== 攻撃系 (中央縦軸) =====
-  { id: "atk_power",  category: "attack", name: "攻撃力",         maxLevel: 5, desc: "全武器のダメージ +20% / Lv",
-    pos: { x: 500, y: 460 } },
-  { id: "atk_pierce", category: "attack", name: "貫通",           maxLevel: 5, desc: "ピストル弾の貫通敵数 +1 / Lv",
-    requires: { id: "atk_power", level: 1 }, pos: { x: 380, y: 380 } },
-  { id: "atk_multi",  category: "attack", name: "弾数",           maxLevel: 3, desc: "ピストル 1 発の弾数 +1 / Lv (扇状、最大 4)",
-    requires: { id: "atk_pierce", level: 1 }, pos: { x: 280, y: 300 } },
-  { id: "atk_back",   category: "attack", name: "後方発射",       maxLevel: 3, desc: "後方にも弾を撃つ。Lv1=1 / Lv2=3 / Lv3=5 本",
-    requires: { id: "atk_multi", level: 3 }, pos: { x: 200, y: 220 } },
-
-  // ===== 武器系 (左側) =====
+  // ===== 武器系 =====
+  // 武器解放 (ピストルは初期から使える)
   { id: "wpn_unlock_bomb",    category: "weapon", name: "爆弾",       maxLevel: 1, desc: "近くの敵に放物線で爆弾を投げる",
-    costOverrides: [40], requires: { id: "atk_power", level: 1 },
-    pos: { x: 360, y: 540 } },
+    costOverrides: [40], requires: { id: "pistol_damage", level: 1 } },
   { id: "wpn_unlock_thunder", category: "weapon", name: "サンダー",   maxLevel: 1, desc: "近くの敵に落雷、3 体まで連鎖",
-    costOverrides: [80], requires: { id: "wpn_unlock_bomb", level: 1 },
-    pos: { x: 220, y: 580 } },
+    costOverrides: [80], requires: { id: "wpn_unlock_bomb", level: 1 } },
   { id: "wpn_unlock_homing",  category: "weapon", name: "ホーミング", maxLevel: 1, desc: "敵を追尾する弾を発射",
-    costOverrides: [60], requires: { id: "atk_power", level: 1 },
-    pos: { x: 360, y: 660 } },
+    costOverrides: [60], requires: { id: "pistol_damage", level: 1 } },
   { id: "wpn_unlock_orbital", category: "weapon", name: "オービタル", maxLevel: 1, desc: "周囲を回る弾で接触ダメージ",
-    costOverrides: [100], requires: { id: "wpn_unlock_homing", level: 1 },
-    pos: { x: 220, y: 720 } },
+    costOverrides: [100], requires: { id: "wpn_unlock_homing", level: 1 } },
 
-  // 武器固有強化 (各武器の子ノード)
-  // ピストル (atk_power 配下): 攻撃速度・クリティカルはここに
-  { id: "pistol_speed", category: "attack", name: "速度",          maxLevel: 5, desc: "ピストル発射間隔 -20% / Lv",
-    requires: { id: "atk_power", level: 1 }, pos: { x: 500, y: 340 } },
-  { id: "pistol_crit",  category: "attack", name: "クリ率",        maxLevel: 5, desc: "ピストルのクリ率 +10% / Lv (クリで ×2)",
-    requires: { id: "pistol_speed", level: 2 }, pos: { x: 500, y: 220 } },
+  // ピストル列 (初期武器なので解放スキルなし、damage がツリー起点)
+  { id: "pistol_damage", category: "weapon", name: "威力",   maxLevel: 5, desc: "ピストルのダメージ +20% / Lv" },
+  { id: "pistol_speed",  category: "weapon", name: "速度",   maxLevel: 5, desc: "ピストル発射間隔 -20% / Lv",
+    requires: { id: "pistol_damage", level: 1 } },
+  { id: "pistol_crit",   category: "weapon", name: "クリ率", maxLevel: 5, desc: "ピストルのクリ率 +10% / Lv (クリで ×2)",
+    requires: { id: "pistol_speed", level: 2 } },
+  { id: "pistol_pierce", category: "weapon", name: "貫通",   maxLevel: 5, desc: "ピストル弾の貫通敵数 +1 / Lv",
+    requires: { id: "pistol_damage", level: 1 } },
+  { id: "pistol_multi",  category: "weapon", name: "弾数",   maxLevel: 2, desc: "ピストル 1 発の弾数 +1 / Lv (扇状、最大 3)",
+    requires: { id: "pistol_pierce", level: 1 } },
+  { id: "pistol_back",   category: "weapon", name: "後方",   maxLevel: 1, desc: "後方にも 1 本撃つ",
+    requires: { id: "pistol_multi", level: 2 } },
 
-  { id: "bomb_radius", category: "weapon", name: "範囲",           maxLevel: 5, desc: "爆発半径 +20% / Lv",
-    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 460 } },
-  { id: "bomb_damage", category: "weapon", name: "威力",           maxLevel: 5, desc: "爆弾ダメージ +25% / Lv",
-    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 520 } },
-  { id: "bomb_range", category: "weapon", name: "射程",            maxLevel: 5, desc: "投射射程 +20% / Lv",
-    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 60, y: 420 } },
-  { id: "bomb_speed", category: "weapon", name: "速度",            maxLevel: 5, desc: "投擲間隔 -15% / Lv",
-    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 60, y: 500 } },
+  // 爆弾列
+  { id: "bomb_damage", category: "weapon", name: "威力", maxLevel: 5, desc: "爆弾ダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 } },
+  { id: "bomb_radius", category: "weapon", name: "範囲", maxLevel: 5, desc: "爆発半径 +20% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 } },
+  { id: "bomb_range",  category: "weapon", name: "射程", maxLevel: 5, desc: "投射射程 +20% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 } },
+  { id: "bomb_speed",  category: "weapon", name: "速度", maxLevel: 5, desc: "投擲間隔 -15% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 } },
 
-  { id: "thunder_chain",  category: "weapon", name: "連鎖",        maxLevel: 5, desc: "連鎖数 +1 / Lv",
-    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 600 } },
-  { id: "thunder_damage", category: "weapon", name: "威力",        maxLevel: 5, desc: "サンダーダメージ +25% / Lv",
-    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 660 } },
-  { id: "thunder_range",  category: "weapon", name: "射程",        maxLevel: 5, desc: "射程 +20% / Lv",
-    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 150, y: 600 } },
-  { id: "thunder_speed",  category: "weapon", name: "速度",        maxLevel: 5, desc: "発動間隔 -15% / Lv",
-    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 150, y: 660 } },
+  // サンダー列
+  { id: "thunder_damage", category: "weapon", name: "威力", maxLevel: 5, desc: "サンダーダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 } },
+  { id: "thunder_chain",  category: "weapon", name: "連鎖", maxLevel: 5, desc: "連鎖数 +1 / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 } },
+  { id: "thunder_range",  category: "weapon", name: "射程", maxLevel: 5, desc: "射程 +20% / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 } },
+  { id: "thunder_speed",  category: "weapon", name: "速度", maxLevel: 5, desc: "発動間隔 -15% / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 } },
 
-  { id: "homing_count",  category: "weapon", name: "弾数",         maxLevel: 5, desc: "1 回の発射で +1 / Lv",
-    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 720 } },
-  { id: "homing_damage", category: "weapon", name: "威力",         maxLevel: 5, desc: "ホーミングダメージ +25% / Lv",
-    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 780 } },
-  { id: "homing_range",  category: "weapon", name: "射程",         maxLevel: 5, desc: "追尾射程 +20% / Lv",
-    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 530, y: 720 } },
-  { id: "homing_speed",  category: "weapon", name: "速度",         maxLevel: 5, desc: "発射間隔 -15% / Lv",
-    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 530, y: 780 } },
+  // ホーミング列
+  { id: "homing_damage", category: "weapon", name: "威力", maxLevel: 5, desc: "ホーミングダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 } },
+  { id: "homing_count",  category: "weapon", name: "弾数", maxLevel: 5, desc: "1 回の発射で +1 / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 } },
+  { id: "homing_range",  category: "weapon", name: "射程", maxLevel: 5, desc: "追尾射程 +20% / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 } },
+  { id: "homing_speed",  category: "weapon", name: "速度", maxLevel: 5, desc: "発射間隔 -15% / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 } },
 
-  { id: "orbital_count", category: "weapon", name: "弾数",         maxLevel: 4, desc: "周回弾の個数 +1 / Lv (初期 2)",
-    requires: { id: "wpn_unlock_orbital", level: 1 }, pos: { x: 80, y: 780 } },
-  { id: "orbital_damage", category: "weapon", name: "威力",        maxLevel: 5, desc: "オービタルダメージ +25% / Lv",
-    requires: { id: "wpn_unlock_orbital", level: 1 }, pos: { x: 80, y: 840 } },
+  // オービタル列
+  { id: "orbital_damage", category: "weapon", name: "威力", maxLevel: 5, desc: "オービタルダメージ +25% / Lv",
+    requires: { id: "wpn_unlock_orbital", level: 1 } },
+  { id: "orbital_count",  category: "weapon", name: "弾数", maxLevel: 4, desc: "周回弾の個数 +1 / Lv (初期 2)",
+    requires: { id: "wpn_unlock_orbital", level: 1 } },
 
   // ===== 防御系 (右上) =====
   { id: "def_hp",     category: "defense", name: "最大HPアップ",     maxLevel: 5, desc: "最大HP +20 / Lv",
@@ -117,7 +109,7 @@ export const SKILLS = [
 //           5 個以上は折り返し (次の行に)
 //
 // SKILLS の手書き pos は表示時に layoutSkills で上書きされる。
-const CATEGORY_ORDER = ["attack", "weapon", "defense", "economy"];
+const CATEGORY_ORDER = ["weapon", "defense", "economy"];
 const ROW_H = 90;
 const SECTION_TOP_PAD = 60; // カテゴリ見出し用
 const SECTION_BOTTOM_PAD = 30;
@@ -139,26 +131,50 @@ function computeTier(skill, byId, memo) {
 export const SECTION_HEADERS = []; // { category, label, y }
 
 // weapon カテゴリは「武器ごとの縦列」レイアウトを使う。
-// 武器解放スキル (wpn_unlock_*) を 1 列のヘッダーとして配置し、その下に
-// 各武器の子スキルを縦に積む。
-const WEAPON_COLUMNS = ["wpn_unlock_bomb", "wpn_unlock_thunder", "wpn_unlock_homing", "wpn_unlock_orbital"];
+// 各列は { headerId?, prefix } で定義。headerId があればそれを列ヘッダーに、
+// 無ければ prefix で始まる ID 全部を列の子として並べる (= ピストル)。
+const WEAPON_COLUMNS = [
+  { headerId: null,                   prefix: "pistol_",  label: "ピストル" },
+  { headerId: "wpn_unlock_bomb",      prefix: "bomb_" },
+  { headerId: "wpn_unlock_thunder",   prefix: "thunder_" },
+  { headerId: "wpn_unlock_homing",    prefix: "homing_" },
+  { headerId: "wpn_unlock_orbital",   prefix: "orbital_" },
+];
 
 function layoutWeaponColumns(skills, byId, startY) {
-  const columns = WEAPON_COLUMNS.map((id) => ({
-    unlockId: id,
-    children: skills.filter((s) => s.requires?.id === id),
-  }));
+  const columns = WEAPON_COLUMNS.map((col) => {
+    if (col.headerId) {
+      // 解放スキル直下の子のみ取る
+      return {
+        ...col,
+        header: byId[col.headerId],
+        children: skills.filter((s) => s.requires?.id === col.headerId),
+      };
+    }
+    // ピストル: prefix で始まる ID を全部取る (依存関係はあっても列内では順序のみで配置)
+    const all = skills.filter((s) => s.id.startsWith(col.prefix));
+    // 依存深さで並べる (浅い順 = ピストル列の上から)
+    all.sort((a, b) => (a.requires ? 1 : 0) - (b.requires ? 1 : 0));
+    return { ...col, header: null, children: all };
+  });
   const ncol = columns.length;
   const colW = TREE_VIEWBOX.width / ncol;
   let maxRowsBelow = 0;
   columns.forEach((col, i) => {
     const cx = colW * (i + 0.5);
-    const unlock = byId[col.unlockId];
-    if (unlock) unlock.pos = { x: cx, y: startY };
-    col.children.forEach((c, j) => {
-      c.pos = { x: cx, y: startY + ROW_H * (j + 1) };
-    });
-    if (col.children.length > maxRowsBelow) maxRowsBelow = col.children.length;
+    if (col.header) {
+      col.header.pos = { x: cx, y: startY };
+      col.children.forEach((c, j) => {
+        c.pos = { x: cx, y: startY + ROW_H * (j + 1) };
+      });
+      if (col.children.length > maxRowsBelow) maxRowsBelow = col.children.length;
+    } else {
+      // ヘッダー無し列 (ピストル): 子を上から順に並べる
+      col.children.forEach((c, j) => {
+        c.pos = { x: cx, y: startY + ROW_H * j };
+      });
+      if (col.children.length - 1 > maxRowsBelow) maxRowsBelow = col.children.length - 1;
+    }
   });
   return startY + ROW_H * (1 + maxRowsBelow);
 }
@@ -257,11 +273,11 @@ export function equippedWeapons(skillLevels) {
 export function computeStats(skillLevels) {
   const lv = (id) => skillLevels[id] || 0;
   return {
-    damageMul:        1 + lv("atk_power")  * 0.20,
+    pistolDamageMul:  1 + lv("pistol_damage") * 0.20,
     pistolCritChance: lv("pistol_crit") * 0.10,
-    pierce:           lv("atk_pierce"),
-    bulletCount:      1 + lv("atk_multi"),
-    backBulletCount:  [0, 1, 3, 5][lv("atk_back")] || 0,
+    pierce:           lv("pistol_pierce"),
+    bulletCount:      1 + lv("pistol_multi"),
+    backBulletCount:  lv("pistol_back") >= 1 ? 1 : 0,
     // 武器ごとの発射間隔倍率 (1 を分母にして使う想定: delay = base / mul)
     weaponSpeedMul: {
       pistol:  1 + lv("pistol_speed")  * 0.20,

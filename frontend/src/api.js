@@ -64,11 +64,15 @@ function writeClearedStages(arr) {
 }
 
 // 廃止された旧スキル ID。所持していたら自動でコイン全額返金 + 削除する。
-const RETIRED_SKILL_IDS = ["atk_speed", "atk_crit"];
+const RETIRED_SKILL_IDS = [
+  "atk_speed", "atk_crit",
+  "atk_power", "atk_pierce", "atk_multi", "atk_back",
+];
 
 // maxLevel が下げられたスキル ID -> 新 maxLevel。超過 lv 分のコストを返金。
 const REDUCED_MAX_LEVELS = {
-  atk_multi: 3, // 5 → 3
+  pistol_multi: 2, // 新ID
+  pistol_back: 1,
 };
 
 function migrateRetiredSkills() {
