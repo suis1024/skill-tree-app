@@ -322,13 +322,23 @@ export default class MainScene extends Phaser.Scene {
       if (!enemy.isTurret && !enemy.isCharger) {
         if (enemy.spinRate) {
           enemy.rotation += enemy.spinRate;
-        } else if (enemy.aimByVelocity && enemy.body) {
-          const vx = enemy.body.velocity.x;
-          const vy = enemy.body.velocity.y;
-          if (vx * vx + vy * vy > 1) {
-            enemy.rotation = Math.atan2(vy, vx);
+        } else if (enemy.aimByVelocity) {
+          // velocity が 0 (= ボスのように x/y を直接書く) でも動きを拾えるよう
+          // 前フレーム位置との差分も見る。
+          let dxRot = 0, dyRot = 0;
+          if (enemy.body && (enemy.body.velocity.x || enemy.body.velocity.y)) {
+            dxRot = enemy.body.velocity.x;
+            dyRot = enemy.body.velocity.y;
+          } else if (enemy._prevX !== undefined) {
+            dxRot = enemy.x - enemy._prevX;
+            dyRot = enemy.y - enemy._prevY;
+          }
+          if (dxRot * dxRot + dyRot * dyRot > 0.5) {
+            enemy.rotation = Math.atan2(dyRot, dxRot);
           }
         }
+        enemy._prevX = enemy.x;
+        enemy._prevY = enemy.y;
       }
     });
 
@@ -565,6 +575,29 @@ export default class MainScene extends Phaser.Scene {
     // プレイヤーがボススポーン位置に重なってたら一瞬無敵 (即死防止)
     this.invincibleUntil = Math.max(this.invincibleUntil, this.time.now + 800);
     this.player.setAlpha(0.4);
+
+    this.startBossSubWave();
+  }
+
+  // ボス戦中の雑魚 spawn。grunt / shooter のみ、上限あり、3 秒間隔。
+  startBossSubWave() {
+    const upperLimit = this.stageNumber >= 6 ? 10 : 6;
+    const intervalMs = this.stageNumber >= 6 ? 2400 : 3000;
+    this.bossSubWaveTimer = this.time.addEvent({
+      delay: intervalMs,
+      loop: true,
+      callback: () => {
+        if (this.phase !== "boss" || this.gameOverActive) return;
+        // ボス本体除く現在の雑魚数をカウント
+        let alive = 0;
+        this.enemies.children.iterate((e) => {
+          if (e && e.active && !e.isBoss) alive++;
+        });
+        if (alive >= upperLimit) return;
+        const type = Math.random() < 0.6 ? "grunt" : "shooter";
+        this.spawnEnemy(type);
+      },
+    });
   }
 
   fireSpread(src, nx, ny, count, spread, speed) {
@@ -1118,6 +1151,7 @@ export default class MainScene extends Phaser.Scene {
   onBossDefeated(x, y) {
     if (this.phase !== "boss") return;
     this.phase = "clearing";
+    if (this.bossSubWaveTimer) { this.bossSubWaveTimer.remove(); this.bossSubWaveTimer = null; }
     this.cameras.main.flash(500, 250, 220, 100);
     this.shake(400, 0.015);
     playSe(this, AUDIO_KEYS.seStageClear.key, { volume: 0.6 });

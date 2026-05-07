@@ -16,24 +16,27 @@ export const SKILLS = [
   // ===== 武器系 =====
   // 武器解放 (ピストルは初期から使える)
   { id: "wpn_unlock_bomb",    category: "weapon", name: "爆弾",       maxLevel: 1, desc: "近くの敵に放物線で爆弾を投げる",
-    costOverrides: [40], requires: { id: "pistol_damage", level: 1 } },
+    costOverrides: [40] },
   { id: "wpn_unlock_thunder", category: "weapon", name: "サンダー",   maxLevel: 1, desc: "近くの敵に落雷、3 体まで連鎖",
     costOverrides: [80], requires: { id: "wpn_unlock_bomb", level: 1 } },
   { id: "wpn_unlock_homing",  category: "weapon", name: "ホーミング", maxLevel: 1, desc: "敵を追尾する弾を発射",
-    costOverrides: [60], requires: { id: "pistol_damage", level: 1 } },
+    costOverrides: [60] },
   { id: "wpn_unlock_orbital", category: "weapon", name: "オービタル", maxLevel: 1, desc: "周囲を回る弾で接触ダメージ",
     costOverrides: [100], requires: { id: "wpn_unlock_homing", level: 1 } },
 
-  // ピストル列 (初期武器なので解放スキルなし、damage がツリー起点)
-  { id: "pistol_damage", category: "weapon", name: "威力",   maxLevel: 5, desc: "ピストルのダメージ +20% / Lv" },
+  // ピストル列 (初期武器: ヘッダーに「ピストル」を表示するためのダミー解放スキル)
+  { id: "pistol_unlock", category: "weapon", name: "ピストル", maxLevel: 1, desc: "初期装備。常に発射する基本武器",
+    costOverrides: [0] },
+  { id: "pistol_damage", category: "weapon", name: "威力",   maxLevel: 5, desc: "ピストルのダメージ +20% / Lv",
+    requires: { id: "pistol_unlock", level: 1 } },
   { id: "pistol_speed",  category: "weapon", name: "速度",   maxLevel: 5, desc: "ピストル発射間隔 -20% / Lv",
-    requires: { id: "pistol_damage", level: 1 } },
+    requires: { id: "pistol_unlock", level: 1 } },
   { id: "pistol_crit",   category: "weapon", name: "クリ率", maxLevel: 5, desc: "ピストルのクリ率 +10% / Lv (クリで ×2)",
-    requires: { id: "pistol_speed", level: 2 } },
+    requires: { id: "pistol_unlock", level: 1 } },
   { id: "pistol_pierce", category: "weapon", name: "貫通",   maxLevel: 5, desc: "ピストル弾の貫通敵数 +1 / Lv",
-    requires: { id: "pistol_damage", level: 1 } },
+    requires: { id: "pistol_unlock", level: 1 } },
   { id: "pistol_multi",  category: "weapon", name: "弾数",   maxLevel: 2, desc: "ピストル 1 発の弾数 +1 / Lv (扇状、最大 3)",
-    requires: { id: "pistol_pierce", level: 1 } },
+    requires: { id: "pistol_unlock", level: 1 } },
   { id: "pistol_back",   category: "weapon", name: "後方",   maxLevel: 1, desc: "後方にも 1 本撃つ",
     requires: { id: "pistol_multi", level: 2 } },
 
@@ -133,48 +136,31 @@ export const SECTION_HEADERS = []; // { category, label, y }
 // weapon カテゴリは「武器ごとの縦列」レイアウトを使う。
 // 各列は { headerId?, prefix } で定義。headerId があればそれを列ヘッダーに、
 // 無ければ prefix で始まる ID 全部を列の子として並べる (= ピストル)。
+// 列順: 爆弾 / サンダー / ピストル (中央) / ホーミング / オービタル
 const WEAPON_COLUMNS = [
-  { headerId: null,                   prefix: "pistol_",  label: "ピストル" },
   { headerId: "wpn_unlock_bomb",      prefix: "bomb_" },
   { headerId: "wpn_unlock_thunder",   prefix: "thunder_" },
+  { headerId: "pistol_unlock",        prefix: "pistol_" },
   { headerId: "wpn_unlock_homing",    prefix: "homing_" },
   { headerId: "wpn_unlock_orbital",   prefix: "orbital_" },
 ];
 
 function layoutWeaponColumns(skills, byId, startY) {
-  const columns = WEAPON_COLUMNS.map((col) => {
-    if (col.headerId) {
-      // 解放スキル直下の子のみ取る
-      return {
-        ...col,
-        header: byId[col.headerId],
-        children: skills.filter((s) => s.requires?.id === col.headerId),
-      };
-    }
-    // ピストル: prefix で始まる ID を全部取る (依存関係はあっても列内では順序のみで配置)
-    const all = skills.filter((s) => s.id.startsWith(col.prefix));
-    // 依存深さで並べる (浅い順 = ピストル列の上から)
-    all.sort((a, b) => (a.requires ? 1 : 0) - (b.requires ? 1 : 0));
-    return { ...col, header: null, children: all };
-  });
+  const columns = WEAPON_COLUMNS.map((col) => ({
+    ...col,
+    header: byId[col.headerId],
+    children: skills.filter((s) => s.requires?.id === col.headerId),
+  }));
   const ncol = columns.length;
   const colW = TREE_VIEWBOX.width / ncol;
   let maxRowsBelow = 0;
   columns.forEach((col, i) => {
     const cx = colW * (i + 0.5);
-    if (col.header) {
-      col.header.pos = { x: cx, y: startY };
-      col.children.forEach((c, j) => {
-        c.pos = { x: cx, y: startY + ROW_H * (j + 1) };
-      });
-      if (col.children.length > maxRowsBelow) maxRowsBelow = col.children.length;
-    } else {
-      // ヘッダー無し列 (ピストル): 子を上から順に並べる
-      col.children.forEach((c, j) => {
-        c.pos = { x: cx, y: startY + ROW_H * j };
-      });
-      if (col.children.length - 1 > maxRowsBelow) maxRowsBelow = col.children.length - 1;
-    }
+    if (col.header) col.header.pos = { x: cx, y: startY };
+    col.children.forEach((c, j) => {
+      c.pos = { x: cx, y: startY + ROW_H * (j + 1) };
+    });
+    if (col.children.length > maxRowsBelow) maxRowsBelow = col.children.length;
   });
   return startY + ROW_H * (1 + maxRowsBelow);
 }

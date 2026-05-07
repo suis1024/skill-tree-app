@@ -107,9 +107,22 @@ function migrateRetiredSkills() {
   }
 }
 
+// 初期から解放扱いにすべきスキル (UI 上でヘッダーとして表示)。
+const ALWAYS_UNLOCKED = ["pistol_unlock"];
+
+function ensureAlwaysUnlocked() {
+  const skills = readSkills();
+  let changed = false;
+  for (const id of ALWAYS_UNLOCKED) {
+    if ((skills[id] || 0) < 1) { skills[id] = 1; changed = true; }
+  }
+  if (changed) writeSkills(skills);
+}
+
 // API は Promise を返す形を維持 (将来クラウド同期に戻す余地)。
 export async function fetchProgress(userId) {
   migrateRetiredSkills();
+  ensureAlwaysUnlocked();
   return {
     user_id: userId,
     coins: readCoins(),
