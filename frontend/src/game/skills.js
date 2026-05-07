@@ -146,11 +146,17 @@ const WEAPON_COLUMNS = [
 ];
 
 function layoutWeaponColumns(skills, byId, startY) {
-  const columns = WEAPON_COLUMNS.map((col) => ({
-    ...col,
-    header: byId[col.headerId],
-    children: skills.filter((s) => s.requires?.id === col.headerId),
-  }));
+  // 各列の子は「ID prefix 一致 (= その武器に属する)」かつ「ヘッダー以外」で取る。
+  // 依存深さ (tier) で並べる (浅い順 = 上から)。
+  const memo = new Map();
+  for (const s of skills) computeTier(s, byId, memo);
+
+  const columns = WEAPON_COLUMNS.map((col) => {
+    const children = skills
+      .filter((s) => s.id !== col.headerId && s.id.startsWith(col.prefix))
+      .sort((a, b) => (memo.get(a.id) ?? 0) - (memo.get(b.id) ?? 0));
+    return { ...col, header: byId[col.headerId], children };
+  });
   const ncol = columns.length;
   const colW = TREE_VIEWBOX.width / ncol;
   let maxRowsBelow = 0;
