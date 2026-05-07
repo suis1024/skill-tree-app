@@ -21,10 +21,10 @@ const STROKE_WIDTH = 2.5;
 function polygonAt(scene, x, y, size, points, color) {
   const obj = scene.add.polygon(x, y, points, color);
   obj.setStrokeStyle(STROKE_WIDTH, STROKE_COLOR, 1);
-  // Polygon は points の bbox から width/height を自動算出するので、
-  // setOrigin(0.5) だけで「ローカル原点 = bbox 中心」になり、
-  // 回転中心と座標基準点が完全一致する。
-  obj.setOrigin(0.5, 0.5);
+  // Phaser Polygon は内部で points を再正規化したり bbox を勝手に縮めたりするので、
+  // 明示的に size×size を指定して displayOrigin を中心 (size/2, size/2) に固定。
+  obj.setSize(size, size);
+  obj.setDisplayOrigin(size / 2, size / 2);
   return obj;
 }
 
@@ -130,16 +130,21 @@ export function makeEnemyShape(scene, x, y, size, color, shape = "rect") {
 
 // 本体を装飾するネオン要素 (外側グロウ + 内側羊皮紙コア) を生成して返す。
 // 呼び出し側で本体オブジェクトの位置 / 回転に追従させること。
+//
+// 重要: glow / core を本体と同じ scene.add.polygon で作ると、
+// Phaser の bbox 自動再正規化のせいでサイズによって中心がズレることがある。
+// 確実に中心一致させるため、Container を作って本体含めて中に入れる方式が一番硬い
+// が、敵側の物理 body が body.setCircle 直接で完結している都合があるので、
+// ここでは「本体の transform を毎フレ追従する」素朴な方式を維持しつつ、
+// glow/core は本体と「全く同じ centered() 座標系で作る」ことだけ保証する。
 const PARCHMENT_COLOR = 0xe8d9b8;
 export function makeNeonDecor(scene, x, y, size, color, shape = "rect") {
   const factory = SHAPE_FACTORIES[shape] || makeRect;
-  // 外側グロウ: 同形状を 1.3 倍、半透明、加算ブレンドで「光ってる」感
   const glow = factory(scene, x, y, size * 1.3, color);
-  glow.setStrokeStyle(0, 0, 0); // ストローク無し
+  glow.setStrokeStyle(0, 0, 0);
   glow.setAlpha(0.35);
   glow.setBlendMode(Phaser.BlendModes.ADD);
   glow.setDepth(-1);
-  // 内側コア: 同形状を 0.45 倍、羊皮紙色 (#e8d9b8)
   const core = factory(scene, x, y, size * 0.45, PARCHMENT_COLOR);
   core.setStrokeStyle(0, 0, 0);
   core.setAlpha(0.7);
