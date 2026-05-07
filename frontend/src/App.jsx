@@ -6,6 +6,7 @@ import TitleScreen from "./TitleScreen";
 import SettingsScreen from "./SettingsScreen";
 import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress, cheatAddCoins, cheatUnlockAllStages } from "./api";
 import { PAL, PX_FONT, JP_FONT, Coin } from "./pixel/PixelArt";
+import { playUiSe } from "./uiSe";
 import { readSettings, writeSettings } from "./settings";
 import { setHapticsEnabled } from "./haptics";
 import { startBgm, setBgmEnabled, setBgmVolume, playTrack } from "./bgm";
@@ -104,6 +105,7 @@ export default function App() {
       const data = await upgradeSkill(userId, skillId, cost);
       setCoins(data.coins);
       setSkillLevels((prev) => ({ ...prev, [skillId]: data.level }));
+      playUiSe("upgrade");
     } catch (e) {
       alert(e.message);
     } finally {
