@@ -66,8 +66,13 @@ export default class MainScene extends Phaser.Scene {
       this.physics.world.setBounds(0, 0, this.worldWidth, this.worldHeight);
       if (this.brickFloor) this.brickFloor.setSize(this.worldWidth, this.worldHeight);
       if (this.scanlines) this.scanlines.setSize(this.worldWidth, this.worldHeight);
+      if (this.hudTopBand) this.hudTopBand.width = this.worldWidth;
+      if (this.hudTopBandLine) this.hudTopBandLine.width = this.worldWidth;
       if (this.timeText) this.timeText.setX(this.worldWidth / 2);
       if (this.stageText) this.stageText.setX(this.worldWidth / 2);
+      if (this.bossLabel) this.bossLabel.setX(this.worldWidth / 2);
+      if (this.coinDot) this.coinDot.setX(this.worldWidth - 18);
+      if (this.coinText) this.coinText.setX(this.worldWidth - 32);
     });
 
     const skillLevels = this.registry.get("skillLevels") || {};
@@ -154,26 +159,60 @@ export default class MainScene extends Phaser.Scene {
   }
 
   createHud() {
-    const style = { fontFamily: "system-ui, sans-serif", fontSize: "18px", color: "#e2e8f0" };
-    const small = { ...style, fontSize: "14px", color: "#94a3b8" };
+    const PX_FONT = '"Press Start 2P", monospace';
+    const JP_FONT = '"DotGothic16", monospace';
     const top = this.registry.get("safeAreaTop") || 12;
     this.hudTop = top;
     const dpr = window.devicePixelRatio || 1;
-    // 左上の HP は小さめで補助表示
-    this.hpText = this.add.text(16, top, "", small).setDepth(2000).setResolution(dpr);
-    this.coinText = this.add.text(16, top + 18, "", style).setDepth(2000).setResolution(dpr);
-    this.stageText = this.add.text(this.worldWidth / 2, top, `STAGE ${this.stageNumber}`, style)
-      .setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
-    this.timeText = this.add.text(this.worldWidth / 2, top + 24, "", style).setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
+
+    // === トップフレーム帯 (グラデの黒 → 透明) ===
+    this.hudTopBand = this.add.rectangle(0, 0, this.worldWidth, top + 56, 0x0a0612, 0.7)
+      .setOrigin(0, 0).setDepth(1990);
+    this.hudTopBandLine = this.add.rectangle(0, top + 56, this.worldWidth, 1, 0xf0c44a, 0.3)
+      .setOrigin(0, 0).setDepth(1991);
+
+    // === 左上: HP heart + bar ===
+    this.hpHeart = this.add.text(14, top + 8, "♥", {
+      fontFamily: PX_FONT, fontSize: "12px", color: "#c63838",
+    }).setDepth(2000).setResolution(dpr);
+    // HP バー枠
+    this.hpBarBg = this.add.rectangle(36, top + 12, 80, 7, 0x1a0f24)
+      .setOrigin(0, 0.5).setDepth(2000).setStrokeStyle(1, 0xc63838);
+    this.hpBarFg = this.add.rectangle(37, top + 12, 78, 5, 0xc63838)
+      .setOrigin(0, 0.5).setDepth(2001);
+    // HP テキスト (細かい数字)
+    this.hpText = this.add.text(36, top + 22, "", {
+      fontFamily: PX_FONT, fontSize: "7px", color: "#c4b08a",
+    }).setOrigin(0, 0).setDepth(2000).setResolution(dpr);
+
+    // === 中央上: STAGE / タイマー ===
+    this.stageText = this.add.text(this.worldWidth / 2, top + 4,
+      `━ STAGE ${this.stageNumber} ━`, {
+        fontFamily: PX_FONT, fontSize: "7px", color: "#c4b08a", letterSpacing: 3,
+      }).setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
+    this.timeText = this.add.text(this.worldWidth / 2, top + 18, "", {
+      fontFamily: PX_FONT, fontSize: "12px", color: "#f0c44a",
+      stroke: "#4a2a0a", strokeThickness: 3,
+    }).setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
+
+    // === 右上: コイン (丸 + 数字) ===
+    this.coinDot = this.add.circle(this.worldWidth - 18, top + 12, 7, 0xf0c44a)
+      .setStrokeStyle(1, 0xa87a1c).setDepth(2000);
+    this.coinText = this.add.text(this.worldWidth - 32, top + 12, "0", {
+      fontFamily: PX_FONT, fontSize: "9px", color: "#f0c44a",
+    }).setOrigin(1, 0.5).setDepth(2000).setResolution(dpr);
+
+    // BOSS ラベル (中央下に出る)
     this.bossHpBar = null;
     this.bossHpBarBg = null;
-    this.bossLabel = this.add.text(this.worldWidth / 2, top + 48, "", small)
-      .setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
+    this.bossLabel = this.add.text(this.worldWidth / 2, top + 40, "", {
+      fontFamily: PX_FONT, fontSize: "9px", color: "#fda4af",
+    }).setOrigin(0.5, 0).setDepth(2000).setResolution(dpr);
 
-    // プレイヤー追従 HP バー (自機の下に出る、画面下端に近いときは上に出す)
+    // === プレイヤー追従 HP バー (ネオン緑) ===
     this.playerHpBarW = 36;
     this.playerHpBarH = 4;
-    this.playerHpBarBg = this.add.rectangle(0, 0, this.playerHpBarW, this.playerHpBarH, 0x1f2937)
+    this.playerHpBarBg = this.add.rectangle(0, 0, this.playerHpBarW, this.playerHpBarH, 0x0a0612, 0.7)
       .setOrigin(0.5, 0).setDepth(1500);
     this.playerHpBar = this.add.rectangle(0, 0, this.playerHpBarW, this.playerHpBarH, 0x22c55e)
       .setOrigin(0, 0).setDepth(1501);
@@ -202,18 +241,22 @@ export default class MainScene extends Phaser.Scene {
 
   refreshHud() {
     const hp = Math.max(0, Math.floor(this.hp));
-    this.hpText.setText(`HP ${hp}/${this.maxHp}`);
-    this.coinText.setText(`COIN: ${this.coins}`);
+    this.hpText.setText(`${hp}/${this.maxHp}`);
+    // HP バーの fg width を hp 比で更新
+    const hpRatio = Math.max(0, hp) / this.maxHp;
+    this.hpBarFg.width = 78 * hpRatio;
+    // コイン
+    this.coinText.setText(`${this.coins}`);
     if (this.phase === "wave") {
       const remain = Math.max(0, WAVE_DURATION_MS - this.elapsedMs);
       const total = Math.ceil(remain / 1000);
       const m = String(Math.floor(total / 60)).padStart(2, "0");
       const s = String(total % 60).padStart(2, "0");
-      this.timeText.setText(`BOSS in ${m}:${s}`);
+      this.timeText.setText(`◆ ${m}:${s} ◆`);
       this.bossLabel.setText("");
     } else if (this.phase === "boss" && this.boss && this.boss.active) {
-      this.timeText.setText("BOSS");
-      this.bossLabel.setText(`BOSS HP: ${Math.max(0, Math.ceil(this.boss.hp))} / ${this.boss.hpMax}`);
+      this.timeText.setText("◆ BOSS ◆");
+      this.bossLabel.setText(`HP ${Math.max(0, Math.ceil(this.boss.hp))} / ${this.boss.hpMax}`);
       this.updateBossHpBar();
     } else {
       this.timeText.setText("");
@@ -227,13 +270,15 @@ export default class MainScene extends Phaser.Scene {
     const w = Math.min(360, this.worldWidth - 60);
     const h = 6;
     const x = (this.worldWidth - w) / 2;
-    const y = top + 70;
+    const y = top + 60;
     if (!this.bossHpBarBg) {
-      this.bossHpBarBg = this.add.rectangle(x, y, w, h, 0x334155).setOrigin(0, 0).setDepth(2000);
-      this.bossHpBar = this.add.rectangle(x, y, w, h, 0xef4444).setOrigin(0, 0).setDepth(2001);
+      this.bossHpBarBg = this.add.rectangle(x, y, w, h, 0x1a0f24)
+        .setOrigin(0, 0).setDepth(2000).setStrokeStyle(1, 0xc63838);
+      this.bossHpBar = this.add.rectangle(x + 1, y + 1, w - 2, h - 2, 0xc63838)
+        .setOrigin(0, 0).setDepth(2001);
     }
     const ratio = Math.max(0, this.boss.hp) / this.boss.hpMax;
-    this.bossHpBar.width = w * ratio;
+    this.bossHpBar.width = (w - 2) * ratio;
   }
 
   update(_time, delta) {
