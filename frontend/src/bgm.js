@@ -1,79 +1,94 @@
 // アプリ全体で 1 本だけ流す BGM のコントローラ。
 // 画面遷移しても再生が途切れない。React からは playTrack/setVolume/setEnabled だけ呼ぶ。
 //
-// iOS WebView 制約:
-// 1. <audio>.volume は無視される (常に最大音量) → 音量制御には Web Audio が要る
-// 2. しかし AudioContext のデフォルト sampleRate (48000) で 44.1k の MP3 を再生すると
-//    リサンプリングで音がやや高くなる
-//   → AudioContext を sampleRate: 44100 で明示的に作って一致させる
+// 実装方針 (iOS WebView 対策):
+// - HTMLAudioElement + MediaElementAudioSourceNode は使わない
+//   (iOS で復帰時に sample rate ドリフトして音階が高くなる既知バグ)
+// - 起動時に MP3 を fetch → decodeAudioData で AudioBuffer 化
+// - 再生時は AudioBufferSourceNode を毎回生成 (loop=true、破棄時は stop)
+// - GainNode 1 個で音量制御
 //
-// 複数トラック対応: トラック URL ごとに <audio> 要素を生成・キャッシュ。
+// 制約:
+// - decode の間は無音 (数百 ms〜数秒)。decode 完了後に自動再生開始
+// - <audio>.volume は使わないので iOS の volume 無視問題も回避
 
 const TRACKS = {
   stage: "audio/bgm/stage.mp3",
   menu: "audio/bgm/menu.mp3",
 };
 
-const TARGET_SAMPLE_RATE = 44100;
-
 let ctx = null;
 let gainNode = null;
 let enabled = true;
 let volume = 0.25;
 let currentKey = null;
-const audioByKey = new Map(); // key -> { el, src }
+let currentSource = null; // 再生中の AudioBufferSourceNode
+const buffers = new Map(); // key -> AudioBuffer
+const decoding = new Map(); // key -> Promise<AudioBuffer>
 
 function ensureCtx() {
-  if (ctx) return;
+  if (ctx) return ctx;
   try {
     const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return;
-    // 注意: sampleRate を明示すると MP3 ファイル側のレートと不一致のとき
-    // リサンプリングで音階がずれる (44.1k と 48k が混在しているため)。
-    // デフォルトに任せて再生中の playback rate ドリフトのみ抑制する。
+    if (!AC) return null;
     ctx = new AC();
     gainNode = ctx.createGain();
     gainNode.gain.value = enabled ? volume : 0;
     gainNode.connect(ctx.destination);
   } catch {
-    // AudioContext が貼れない場合のフォールバック
+    ctx = null;
+  }
+  return ctx;
+}
+
+async function loadBuffer(key) {
+  if (buffers.has(key)) return buffers.get(key);
+  if (decoding.has(key)) return decoding.get(key);
+  const url = TRACKS[key];
+  if (!url) return null;
+  const c = ensureCtx();
+  if (!c) return null;
+  const promise = (async () => {
+    const res = await fetch(url);
+    const arr = await res.arrayBuffer();
+    const buf = await new Promise((resolve, reject) => {
+      // Safari は callback 形式しか実装してない時期もあったので両対応
+      try {
+        const p = c.decodeAudioData(arr, resolve, reject);
+        if (p && typeof p.then === "function") p.then(resolve, reject);
+      } catch (e) {
+        reject(e);
+      }
+    });
+    buffers.set(key, buf);
+    decoding.delete(key);
+    return buf;
+  })();
+  decoding.set(key, promise);
+  return promise;
+}
+
+function stopCurrentSource() {
+  if (currentSource) {
+    try { currentSource.stop(); } catch {}
+    try { currentSource.disconnect(); } catch {}
+    currentSource = null;
   }
 }
 
-function ensureAudio(key) {
-  const cached = audioByKey.get(key);
-  if (cached) return cached;
-  const url = TRACKS[key];
-  if (!url) return null;
-  const el = new Audio(url);
-  el.loop = true;
-  el.preload = "auto";
-  el.crossOrigin = "anonymous";
-  ensureCtx();
-  let src = null;
-  if (ctx && gainNode) {
-    try {
-      src = ctx.createMediaElementSource(el);
-      src.connect(gainNode);
-    } catch {
-      // 失敗したら <audio>.volume にフォールバック (iOS では効かないことが多いが…)
-      el.volume = enabled ? volume : 0;
-    }
-  } else {
-    el.volume = enabled ? volume : 0;
-  }
-  const entry = { el, src };
-  audioByKey.set(key, entry);
-  return entry;
+function startSource(buf) {
+  const c = ensureCtx();
+  if (!c || !gainNode) return null;
+  const src = c.createBufferSource();
+  src.buffer = buf;
+  src.loop = true;
+  src.connect(gainNode);
+  try { src.start(0); } catch {}
+  return src;
 }
 
 function applyVolume() {
-  const v = enabled ? volume : 0;
-  if (gainNode) {
-    gainNode.gain.value = v;
-  } else {
-    audioByKey.forEach(({ el }) => { el.volume = v; });
-  }
+  if (gainNode) gainNode.gain.value = enabled ? volume : 0;
 }
 
 let resumeKey = null;
@@ -81,69 +96,51 @@ if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       resumeKey = currentKey;
-      audioByKey.forEach(({ el }) => {
-        if (!el.paused) el.pause();
-        el.currentTime = 0;
-      });
+      // 念のため source を停止 (二重再生防止)
+      stopCurrentSource();
     } else if (document.visibilityState === "visible") {
-      audioByKey.forEach(({ el }) => {
-        if (!el.paused) el.pause();
-        el.currentTime = 0;
-      });
       if (resumeKey) {
-        const entry = audioByKey.get(resumeKey);
-        if (entry) {
-          if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
-          entry.el.currentTime = 0;
-          entry.el.play().catch(() => {});
-        }
-        currentKey = resumeKey;
+        const k = resumeKey;
         resumeKey = null;
+        // ctx を resume してから新規 source で再生
+        const c = ensureCtx();
+        if (c && c.state === "suspended") c.resume().catch(() => {});
+        playTrack(k);
       }
     }
   });
 }
 
-function stopAllExcept(keepKey) {
-  audioByKey.forEach(({ el }, key) => {
-    if (key === keepKey) return;
-    if (!el.paused) el.pause();
-    el.currentTime = 0;
-  });
-}
-
-export function playTrack(key) {
+export async function playTrack(key) {
   if (!TRACKS[key]) return;
-  stopAllExcept(key);
-  if (currentKey === key) {
-    const entry = audioByKey.get(key);
-    if (entry && entry.el.paused) {
-      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
-      entry.el.play().catch(() => {});
-    }
-    return;
-  }
+  if (currentKey === key && currentSource) return; // 既に再生中
   currentKey = key;
-  const entry = ensureAudio(key);
-  if (!entry) return;
-  if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
-  entry.el.currentTime = 0;
-  entry.el.play().catch(() => {});
-  setTimeout(() => stopAllExcept(currentKey), 50);
-  setTimeout(() => stopAllExcept(currentKey), 300);
+  // 別 key を停止
+  stopCurrentSource();
+  const c = ensureCtx();
+  if (c && c.state === "suspended") c.resume().catch(() => {});
+  let buf = buffers.get(key);
+  if (!buf) {
+    try {
+      buf = await loadBuffer(key);
+    } catch {
+      return;
+    }
+    // 待ってる間に別 track に切り替わってたら何もしない
+    if (currentKey !== key) return;
+  }
+  if (!buf) return;
+  stopCurrentSource(); // 念のため
+  currentSource = startSource(buf);
 }
 
+// 互換維持
 export function startBgm() {
   playTrack("menu");
 }
 
 export function stopBgm() {
-  if (!currentKey) return;
-  const entry = audioByKey.get(currentKey);
-  if (entry) {
-    entry.el.pause();
-    entry.el.currentTime = 0;
-  }
+  stopCurrentSource();
   currentKey = null;
 }
 
