@@ -49,9 +49,9 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
           <div style={styles.headerTitle}>SKILL TREE</div>
           {onOpenSettings ? (
             <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.headerSideBtn}>
-              <GearIcon width={14} height={14} />
+              <GearIcon width={14} height={14} /><span>MENU</span>
             </button>
-          ) : <span style={{ width: 36 }} />}
+          ) : <span style={{ width: 60 }} />}
         </div>
         <div style={styles.headerBottom}>
           <div style={styles.coinPill}>
@@ -327,16 +327,17 @@ const styles = {
     minWidth: 0,
   },
   headerSideBtn: {
-    background: "transparent",
+    background: PAL.ink2,
     border: "none",
-    color: "#7a6a8a",
+    color: PAL.bone2,
     cursor: "pointer",
     fontFamily: PX_FONT,
     fontSize: 9,
     letterSpacing: 2,
-    padding: "4px 6px",
-    display: "inline-flex", alignItems: "center", gap: 4,
+    padding: "6px 10px",
+    display: "inline-flex", alignItems: "center", gap: 5,
     flexShrink: 0,
+    boxShadow: `2px 2px 0 #050309, 0 0 0 1.5px ${PAL.shadow}`,
   },
   headerBottom: {
     display: "flex", alignItems: "center", justifyContent: "space-between",

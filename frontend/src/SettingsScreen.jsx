@@ -301,12 +301,13 @@ const styles = {
     textShadow: "0 0 8px rgba(240,196,74,0.5)",
   },
   headerSideBtn: {
-    background: "transparent", border: "none",
-    color: "#7a6a8a", cursor: "pointer",
+    background: PAL.ink2, border: "none",
+    color: PAL.bone2, cursor: "pointer",
     fontFamily: PX_FONT, fontSize: 9, letterSpacing: 2,
-    padding: "4px 6px",
-    display: "inline-flex", alignItems: "center", gap: 4,
+    padding: "6px 10px",
+    display: "inline-flex", alignItems: "center", gap: 5,
     flexShrink: 0,
+    boxShadow: `2px 2px 0 #050309, 0 0 0 1.5px ${PAL.shadow}`,
   },
   body: {
     padding: "16px 16px",

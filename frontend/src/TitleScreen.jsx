@@ -140,10 +140,7 @@ export default function TitleScreen({ onStart }) {
     <div style={styles.wrap} onPointerDown={() => startBgm()}>
       <DemoWindow />
 
-      {/* DEMO タグ */}
-      <div style={styles.demoTag}>▸ DEMO</div>
-
-      {/* ロゴ + サブタイトル */}
+{/* ロゴ + サブタイトル */}
       <div style={styles.logoArea}>
         <LogoNeon scale={0.85} />
         <div style={{ marginTop: 18 }}>
@@ -227,14 +224,6 @@ const styles = {
     background: "radial-gradient(ellipse at 50% 50%, #2a0a30 0%, #0a0612 80%)",
     boxShadow: `inset 0 0 0 2px #5a4670, 0 0 0 4px ${PAL.ink}, 0 0 0 6px ${PAL.gold}, 0 0 24px rgba(240,196,74,0.4)`,
     overflow: "hidden",
-  },
-  demoTag: {
-    position: "absolute",
-    top: "calc(env(safe-area-inset-top) + 38px)",
-    left: 36,
-    fontFamily: PX_FONT, fontSize: 7, color: PAL.gold, letterSpacing: 2,
-    textShadow: "0 0 6px rgba(240,196,74,0.7)",
-    zIndex: 12,
   },
   logoArea: {
     position: "absolute",
