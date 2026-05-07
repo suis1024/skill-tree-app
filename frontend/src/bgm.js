@@ -1,9 +1,12 @@
 // アプリ全体で 1 本だけ流す BGM のコントローラ。
 // 画面遷移しても再生が途切れない。React からは playTrack/setVolume/setEnabled だけ呼ぶ。
 //
-// Web Audio (AudioContext + MediaElementAudioSourceNode) を経由すると、
-// iOS WebView でサンプルレート不一致による「BGM がやや高音化する」問題があったため
-// シンプルに <audio>.volume だけで制御する方式に変更。
+// iOS WebView 制約:
+// 1. <audio>.volume は無視される (常に最大音量) → 音量制御には Web Audio が要る
+// 2. しかし AudioContext のデフォルト sampleRate (48000) で 44.1k の MP3 を再生すると
+//    リサンプリングで音がやや高くなる
+//   → AudioContext を sampleRate: 44100 で明示的に作って一致させる
+//
 // 複数トラック対応: トラック URL ごとに <audio> 要素を生成・キャッシュ。
 
 const TRACKS = {
@@ -11,50 +14,88 @@ const TRACKS = {
   menu: "audio/bgm/menu.mp3",
 };
 
+const TARGET_SAMPLE_RATE = 44100;
+
+let ctx = null;
+let gainNode = null;
 let enabled = true;
 let volume = 0.25;
 let currentKey = null;
-const audioByKey = new Map(); // key -> HTMLAudioElement
+const audioByKey = new Map(); // key -> { el, src }
+
+function ensureCtx() {
+  if (ctx) return;
+  try {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    // 注意: sampleRate を明示すると MP3 ファイル側のレートと不一致のとき
+    // リサンプリングで音階がずれる (44.1k と 48k が混在しているため)。
+    // デフォルトに任せて再生中の playback rate ドリフトのみ抑制する。
+    ctx = new AC();
+    gainNode = ctx.createGain();
+    gainNode.gain.value = enabled ? volume : 0;
+    gainNode.connect(ctx.destination);
+  } catch {
+    // AudioContext が貼れない場合のフォールバック
+  }
+}
 
 function ensureAudio(key) {
-  if (audioByKey.has(key)) return audioByKey.get(key);
+  const cached = audioByKey.get(key);
+  if (cached) return cached;
   const url = TRACKS[key];
   if (!url) return null;
   const el = new Audio(url);
   el.loop = true;
   el.preload = "auto";
-  el.volume = enabled ? volume : 0;
-  audioByKey.set(key, el);
-  return el;
+  el.crossOrigin = "anonymous";
+  ensureCtx();
+  let src = null;
+  if (ctx && gainNode) {
+    try {
+      src = ctx.createMediaElementSource(el);
+      src.connect(gainNode);
+    } catch {
+      // 失敗したら <audio>.volume にフォールバック (iOS では効かないことが多いが…)
+      el.volume = enabled ? volume : 0;
+    }
+  } else {
+    el.volume = enabled ? volume : 0;
+  }
+  const entry = { el, src };
+  audioByKey.set(key, entry);
+  return entry;
 }
 
 function applyVolume() {
   const v = enabled ? volume : 0;
-  audioByKey.forEach((el) => { el.volume = v; });
+  if (gainNode) {
+    gainNode.gain.value = v;
+  } else {
+    audioByKey.forEach(({ el }) => { el.volume = v; });
+  }
 }
 
-// iOS WebView は アプリがバックグラウンドに入ると <audio> をサスペンドし、
-// 復帰時に勝手に再開する (複数トラックが同時再開して二重再生)。
-// hidden 時に全停止 → visible 時に currentKey だけ再生 を強制する。
 let resumeKey = null;
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
       resumeKey = currentKey;
-      audioByKey.forEach((el) => {
+      audioByKey.forEach(({ el }) => {
         if (!el.paused) el.pause();
         el.currentTime = 0;
       });
     } else if (document.visibilityState === "visible") {
-      audioByKey.forEach((el) => {
+      audioByKey.forEach(({ el }) => {
         if (!el.paused) el.pause();
         el.currentTime = 0;
       });
       if (resumeKey) {
-        const el = audioByKey.get(resumeKey);
-        if (el) {
-          el.currentTime = 0;
-          el.play().catch(() => {});
+        const entry = audioByKey.get(resumeKey);
+        if (entry) {
+          if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+          entry.el.currentTime = 0;
+          entry.el.play().catch(() => {});
         }
         currentKey = resumeKey;
         resumeKey = null;
@@ -64,48 +105,44 @@ if (typeof document !== "undefined") {
 }
 
 function stopAllExcept(keepKey) {
-  audioByKey.forEach((el, key) => {
+  audioByKey.forEach(({ el }, key) => {
     if (key === keepKey) return;
     if (!el.paused) el.pause();
     el.currentTime = 0;
   });
 }
 
-// 指定キーのトラックに切り替えて再生する。同じキーなら no-op (ただし他トラックが
-// iOS の勝手な再開で鳴っていたら掃除する)。
 export function playTrack(key) {
   if (!TRACKS[key]) return;
   stopAllExcept(key);
   if (currentKey === key) {
-    const el = audioByKey.get(key);
-    if (el && el.paused) {
-      el.play().catch(() => {});
+    const entry = audioByKey.get(key);
+    if (entry && entry.el.paused) {
+      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+      entry.el.play().catch(() => {});
     }
     return;
   }
   currentKey = key;
-  const el = ensureAudio(key);
-  if (!el) return;
-  el.currentTime = 0;
-  el.play().catch(() => {
-    // ユーザー操作前だとここに来る。次のタップ時に再試行される想定。
-  });
-  // 保険: 遅れて他トラックが再開する場合に備えて掃除
+  const entry = ensureAudio(key);
+  if (!entry) return;
+  if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+  entry.el.currentTime = 0;
+  entry.el.play().catch(() => {});
   setTimeout(() => stopAllExcept(currentKey), 50);
   setTimeout(() => stopAllExcept(currentKey), 300);
 }
 
-// 互換維持
 export function startBgm() {
   playTrack("menu");
 }
 
 export function stopBgm() {
   if (!currentKey) return;
-  const el = audioByKey.get(currentKey);
-  if (el) {
-    el.pause();
-    el.currentTime = 0;
+  const entry = audioByKey.get(currentKey);
+  if (entry) {
+    entry.el.pause();
+    entry.el.currentTime = 0;
   }
   currentKey = null;
 }
