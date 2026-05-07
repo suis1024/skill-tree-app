@@ -1086,15 +1086,44 @@ export default class MainScene extends Phaser.Scene {
   }
 
   // 出現アニメ: 半透明 + 小スケール + 回転しながら通常状態へ。
-  // アニメ中は物理を止めて無敵扱いにする。
+  // アニメ中は物理を止めて無敵扱いにする。glow/core も同じ動きで一緒に出現させる。
   runSpawnAnim(enemy) {
     enemy.isSpawning = true;
     if (enemy.body) enemy.body.enable = false;
     enemy.setAlpha(0);
     enemy.setScale(0.2);
     enemy.rotation = 0;
+    const targets = [enemy];
+    if (enemy.glow) {
+      enemy.glow.setAlpha(0);
+      enemy.glow.setScale(0.2);
+      enemy.glow.rotation = 0;
+      // glow の最終 alpha は 0.35 なので tween の to をそのまま 1 にすると過剰
+      // 別 tween で glow だけ 0 → 0.35 で
+      this.tweens.add({
+        targets: enemy.glow,
+        alpha: { from: 0, to: 0.35 },
+        scale: { from: 0.2, to: 1 },
+        rotation: { from: 0, to: Math.PI * 2 },
+        duration: 500,
+        ease: "Cubic.easeOut",
+      });
+    }
+    if (enemy.core) {
+      enemy.core.setAlpha(0);
+      enemy.core.setScale(0.2);
+      enemy.core.rotation = 0;
+      this.tweens.add({
+        targets: enemy.core,
+        alpha: { from: 0, to: 0.7 },
+        scale: { from: 0.2, to: 1 },
+        rotation: { from: 0, to: Math.PI * 2 },
+        duration: 500,
+        ease: "Cubic.easeOut",
+      });
+    }
     this.tweens.add({
-      targets: enemy,
+      targets,
       alpha: { from: 0, to: 1 },
       scale: { from: 0.2, to: 1 },
       rotation: { from: 0, to: Math.PI * 2 },

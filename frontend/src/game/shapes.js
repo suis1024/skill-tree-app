@@ -21,9 +21,10 @@ const STROKE_WIDTH = 2.5;
 function polygonAt(scene, x, y, size, points, color) {
   const obj = scene.add.polygon(x, y, points, color);
   obj.setStrokeStyle(STROKE_WIDTH, STROKE_COLOR, 1);
-  // setOrigin だけだと描画 origin と rotation pivot がズレることがあるので、
-  // 明示的に displayOrigin = (size/2, size/2) で bbox 中心に固定。
-  obj.setDisplayOrigin(size / 2, size / 2);
+  // Polygon は points の bbox から width/height を自動算出するので、
+  // setOrigin(0.5) だけで「ローカル原点 = bbox 中心」になり、
+  // 回転中心と座標基準点が完全一致する。
+  obj.setOrigin(0.5, 0.5);
   return obj;
 }
 

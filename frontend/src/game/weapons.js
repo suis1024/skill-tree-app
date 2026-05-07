@@ -39,8 +39,9 @@ function firePistolFan(scene, baseAngle, count) {
     const angle = count === 1 ? baseAngle : start + (spread * i) / (count - 1);
     const isCrit = Math.random() < (stats.pistolCritChance || 0);
     const damage = baseDamage * (isCrit ? 2 : 1);
-    // クリ弾も見た目は通常弾と同じ (当たった瞬間のダメージ表示で判別される)
+    // クリ弾も見た目は通常弾と同じ。ネオン風に ink ストローク + 内側白で。
     const bullet = scene.add.rectangle(scene.player.x, scene.player.y, 8, 8, 0xfacc15);
+    bullet.setStrokeStyle(1, 0x0a0612);
     scene.bullets.add(bullet);
     bullet.body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
     bullet.damage = damage;

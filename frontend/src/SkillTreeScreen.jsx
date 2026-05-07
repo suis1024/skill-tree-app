@@ -167,20 +167,21 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
                   width={r * 2 - 8} height={r * 2 - 8}
                   fill={PAL.ink} fillOpacity={isOwned ? 0.2 : 1}
                 />
-                {/* アイコン */}
-                <foreignObject
-                  x={s.pos.x - 12} y={s.pos.y - 14}
-                  width={24} height={24}
-                  style={{ overflow: "visible", pointerEvents: "none" }}
-                >
-                  <div style={{
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    width: 24, height: 24,
-                    opacity: isLocked ? 0.4 : 1,
-                  }}>
-                    <NodeIcon kind={iconKindFor(s.id)} scale={2} />
-                  </div>
-                </foreignObject>
+                {/* アイコン (16×16 を box 中央に固定) */}
+                {!isLocked && (
+                  <foreignObject
+                    x={s.pos.x - 16} y={s.pos.y - 16}
+                    width={32} height={32}
+                    style={{ overflow: "visible", pointerEvents: "none" }}
+                  >
+                    <div style={{
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      width: 32, height: 32,
+                    }}>
+                      <NodeIcon kind={iconKindFor(s.id)} scale={2} />
+                    </div>
+                  </foreignObject>
+                )}
                 {/* Lv バッジ or ロック */}
                 {!isLocked && (
                   <g>
