@@ -68,36 +68,62 @@ function applyVolume() {
   }
 }
 
-// バックグラウンド復帰時に「現在トラック以外」が勝手に再生再開して二重再生に
-// なるのを防ぐ。foreground に戻ったら currentKey 以外を強制停止する。
+// iOS WebView は アプリがバックグラウンドに入ると <audio> をサスペンドし、
+// 復帰時に勝手に再開する (しかも複数のトラックが同時再開して二重再生になることが
+// 観察されている)。なので:
+//  - hidden になった瞬間に「全トラックを完全停止」(currentKey は別変数で覚えておく)
+//  - visible に戻った瞬間に「currentKey のトラックだけ再生」
+// で「再生中なのは currentKey の 1 本だけ」を強制する。
+let resumeKey = null;
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState !== "visible") return;
-    audioByKey.forEach((el, key) => {
-      if (key !== currentKey && !el.paused) {
-        el.pause();
+    if (document.visibilityState === "hidden") {
+      resumeKey = currentKey;
+      audioByKey.forEach((el) => {
+        if (!el.paused) el.pause();
         el.currentTime = 0;
+      });
+    } else if (document.visibilityState === "visible") {
+      // まず全トラック停止 (iOS が勝手に再開していたら掃除)
+      audioByKey.forEach((el) => {
+        if (!el.paused) el.pause();
+        el.currentTime = 0;
+      });
+      if (resumeKey) {
+        const el = audioByKey.get(resumeKey);
+        if (el) {
+          if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+          el.play().catch(() => {});
+        }
+        currentKey = resumeKey;
+        resumeKey = null;
       }
-    });
+    }
   });
 }
 
-// 指定キーのトラックに切り替えて再生する。同じキーなら何もしない。
-export function playTrack(key) {
-  if (!TRACKS[key]) return;
-  if (currentKey === key) {
-    // 既に同キー再生中ならそのまま (iOS で confirm/バックグラウンド復帰で paused 化
-    // することがあるので念のため再生試行)
-    const el = audioByKey.get(key);
-    if (el && el.paused) el.play().catch(() => {});
-    return;
-  }
-  // 全トラック強制停止 (iOS バックグラウンド復帰で旧 audio が勝手に再開して
-  // 二重再生になることがあるため、currentKey 以外も含めて全部止める)。
-  audioByKey.forEach((el) => {
+function stopAllExcept(keepKey) {
+  audioByKey.forEach((el, key) => {
+    if (key === keepKey) return;
     if (!el.paused) el.pause();
     el.currentTime = 0;
   });
+}
+
+// 指定キーのトラックに切り替えて再生する。同じキーなら no-op (ただし他トラックが
+// iOS の勝手な再開で鳴っていたら掃除する)。
+export function playTrack(key) {
+  if (!TRACKS[key]) return;
+  // 念のため、対象 key 以外を全停止
+  stopAllExcept(key);
+  if (currentKey === key) {
+    const el = audioByKey.get(key);
+    if (el && el.paused) {
+      if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {});
+      el.play().catch(() => {});
+    }
+    return;
+  }
   currentKey = key;
   const el = ensureAudio(key);
   if (!el) return;
@@ -105,6 +131,9 @@ export function playTrack(key) {
   el.play().catch(() => {
     // ユーザー操作前だとここに来る。次のタップ時に再試行される想定。
   });
+  // 保険: 1 フレ後に再度「対象以外を停止」(iOS が遅延で他トラックを再開する場合)
+  setTimeout(() => stopAllExcept(currentKey), 50);
+  setTimeout(() => stopAllExcept(currentKey), 300);
 }
 
 // 互換維持: 旧 startBgm は menu トラックを開始する想定
