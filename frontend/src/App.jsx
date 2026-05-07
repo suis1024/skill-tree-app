@@ -195,10 +195,6 @@ export default function App() {
 
   return (
     <div style={styles.app}>
-      <header style={styles.header}>
-        <h1 style={styles.title}>Skill Tree Shooter</h1>
-        <span style={styles.userId}>ID: {userId}</span>
-      </header>
 
       {screen === SCREEN.LOADING && <p style={styles.center}>読み込み中…</p>}
 

@@ -7,9 +7,9 @@ export default function StageSelectScreen({ clearedStages, onSelect, onBack }) {
   return (
     <div style={styles.wrap}>
       <header style={styles.header}>
-        <button type="button" onClick={onBack} style={styles.backButton}>← スキルツリー</button>
-        <h2 style={{ margin: 0 }}>ステージ選択</h2>
-        <span style={{ width: 120 }} />
+        <button type="button" onClick={onBack} style={styles.backButton}>← 戻る</button>
+        <h2 style={styles.headerTitle}>ステージ選択</h2>
+        <span style={{ width: 64, flexShrink: 0 }} />
       </header>
 
       <div style={styles.grid}>
@@ -50,15 +50,27 @@ export default function StageSelectScreen({ clearedStages, onSelect, onBack }) {
 }
 
 const styles = {
-  wrap: { padding: "16px", color: "#e2e8f0" },
+  wrap: {
+    padding: "calc(env(safe-area-inset-top) + 12px) 16px calc(env(safe-area-inset-bottom) + 16px)",
+    color: "#e2e8f0",
+  },
   header: {
     display: "flex", alignItems: "center", justifyContent: "space-between",
     marginBottom: 16, gap: 12,
   },
+  headerTitle: {
+    margin: 0,
+    fontSize: 20,
+    whiteSpace: "nowrap",
+    flexShrink: 1,
+    minWidth: 0,
+  },
   backButton: {
     background: "#334155", color: "#e2e8f0", border: "none",
     padding: "8px 14px", borderRadius: 6, fontSize: 14, cursor: "pointer",
-    minWidth: 120,
+    minWidth: 64,
+    flexShrink: 0,
+    whiteSpace: "nowrap",
   },
   grid: {
     display: "grid",

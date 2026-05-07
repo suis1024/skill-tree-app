@@ -19,28 +19,29 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
 
   return (
     <div style={styles.wrap}>
-      <header style={styles.header}>
-        <div style={styles.headerLeft}>
-          {onBackToTitle && (
-            <button type="button" onClick={onBackToTitle} style={styles.backButton}>← タイトル</button>
-          )}
-          <h2 style={{ margin: 0 }}>スキルツリー</h2>
-          {onOpenSettings && (
-            <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.iconButton}>⚙</button>
-          )}
-        </div>
-        <div style={styles.headerRight}>
-          <span style={styles.coin}>COIN: <strong>{coins}</strong></span>
-          <button
-            type="button"
-            onClick={onStart}
-            disabled={busy}
-            style={styles.startButton}
-          >
-            ▶ ステージ選択
-          </button>
-        </div>
+      <header style={styles.headerTop}>
+        {onBackToTitle && (
+          <button type="button" onClick={onBackToTitle} style={styles.backButton}>← 戻る</button>
+        )}
+        <h2 style={styles.headerTitle}>スキルツリー</h2>
+        {onOpenSettings && (
+          <button type="button" onClick={onOpenSettings} aria-label="設定" style={styles.iconButton}>⚙</button>
+        )}
       </header>
+      <div style={styles.headerBottom}>
+        <div style={styles.coinPill}>
+          <span style={styles.coinIcon}>◉</span>
+          <strong style={styles.coinValue}>{coins.toLocaleString()}</strong>
+        </div>
+        <button
+          type="button"
+          onClick={onStart}
+          disabled={busy}
+          style={styles.startButton}
+        >
+          ステージ選択 ▶
+        </button>
+      </div>
 
       <div style={styles.treeWrap}>
         <TransformWrapper
@@ -243,23 +244,59 @@ function SkillDetail({ skill, lv, skillLevels, coins, busy, onUpgrade, onClose }
 }
 
 const styles = {
-  wrap: { padding: "12px 12px 200px", color: "#e2e8f0" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 12 },
-  headerLeft: { display: "flex", alignItems: "center", gap: 12 },
-  headerRight: { display: "flex", alignItems: "center", gap: 16 },
+  wrap: {
+    padding: "calc(env(safe-area-inset-top) + 8px) 12px 200px",
+    color: "#e2e8f0",
+  },
+  headerTop: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 10, gap: 8,
+  },
+  headerTitle: {
+    margin: 0,
+    fontSize: 18,
+    flex: 1,
+    textAlign: "center",
+    whiteSpace: "nowrap",
+    minWidth: 0,
+  },
+  headerBottom: {
+    display: "flex", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 14, gap: 12,
+  },
   backButton: {
-    background: "#334155", color: "#e2e8f0", border: "none",
-    padding: "8px 14px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+    background: "rgba(51,65,85,0.7)", color: "#e2e8f0", border: "1px solid #475569",
+    padding: "8px 14px", borderRadius: 18, fontSize: 13, cursor: "pointer",
+    flexShrink: 0, whiteSpace: "nowrap",
   },
   iconButton: {
-    background: "#334155", color: "#e2e8f0", border: "none",
+    background: "rgba(51,65,85,0.7)", color: "#e2e8f0", border: "1px solid #475569",
     width: 36, height: 36, borderRadius: 18, fontSize: 18, cursor: "pointer",
     display: "flex", alignItems: "center", justifyContent: "center",
+    flexShrink: 0,
   },
-  coin: { fontSize: 18, color: "#fde047" },
+  coinPill: {
+    display: "inline-flex", alignItems: "center", gap: 8,
+    background: "linear-gradient(135deg, #f59e0b, #fbbf24)",
+    color: "#7c2d12",
+    padding: "8px 16px",
+    borderRadius: 20,
+    boxShadow: "0 2px 8px rgba(251,191,36,0.3), inset 0 1px 0 rgba(255,255,255,0.4)",
+    fontWeight: 700,
+  },
+  coinIcon: { fontSize: 14, color: "#7c2d12" },
+  coinValue: { fontSize: 18, color: "#451a03" },
   startButton: {
-    background: "#22c55e", color: "#0f172a", border: "none", padding: "10px 22px",
-    fontSize: 16, fontWeight: 700, borderRadius: 6, cursor: "pointer",
+    background: "linear-gradient(135deg, #16a34a, #22c55e)",
+    color: "#052e16",
+    border: "none",
+    padding: "10px 22px",
+    fontSize: 15,
+    fontWeight: 700,
+    borderRadius: 22,
+    cursor: "pointer",
+    boxShadow: "0 4px 12px rgba(34,197,94,0.4)",
+    flexShrink: 0,
   },
   treeWrap: {
     width: "100%",
