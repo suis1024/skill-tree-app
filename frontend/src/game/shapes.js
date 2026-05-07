@@ -21,10 +21,15 @@ const STROKE_WIDTH = 2.5;
 function polygonAt(scene, x, y, size, points, color) {
   const obj = scene.add.polygon(x, y, points, color);
   obj.setStrokeStyle(STROKE_WIDTH, STROKE_COLOR, 1);
-  // Phaser Polygon は内部で points を再正規化したり bbox を勝手に縮めたりするので、
-  // 明示的に size×size を指定して displayOrigin を中心 (size/2, size/2) に固定。
+  // Phaser Polygon コンストラクタは bounds.width/height で setSize するが、
+  // size と bounds が一致しない (浮動小数誤差等) と _displayOriginX が描画時の
+  // 計算とズレる。明示的に size を再設定 + setOrigin(0.5) で _displayOrigin を
+  // 確実に再計算させる。
+  // ⚠ setDisplayOrigin は displayOriginX のみ更新し、renderer が見る
+  //   _displayOriginX は更新しない罠がある。setOrigin → updateDisplayOrigin
+  //   経由で _displayOriginX = originX * width を再計算させるのが正しい。
   obj.setSize(size, size);
-  obj.setDisplayOrigin(size / 2, size / 2);
+  obj.setOrigin(0.5, 0.5);
   return obj;
 }
 
