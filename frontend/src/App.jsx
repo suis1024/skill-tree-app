@@ -5,6 +5,7 @@ import StageSelectScreen from "./StageSelectScreen";
 import TitleScreen from "./TitleScreen";
 import SettingsScreen from "./SettingsScreen";
 import { getUserId, fetchProgress, addCoins, upgradeSkill, markStageCleared, resetSkills, wipeProgress, cheatAddCoins, cheatUnlockAllStages } from "./api";
+import { PAL, PX_FONT, JP_FONT, Coin } from "./pixel/PixelArt";
 import { readSettings, writeSettings } from "./settings";
 import { setHapticsEnabled } from "./haptics";
 import { startBgm, setBgmEnabled, setBgmVolume, playTrack } from "./bgm";
@@ -225,31 +226,59 @@ export default function App() {
       )}
 
       {screen === SCREEN.RESULT && lastResult && (
-        <div style={styles.resultWrap}>
-          <h2 style={{ color: lastResult.cleared ? "#fde047" : "#f87171", margin: 0 }}>
-            {lastResult.cleared ? `STAGE ${lastResult.stageNumber} CLEAR!` : "RUN ENDED"}
-          </h2>
-          <p style={styles.resultLine}>
-            生存時間: <strong>{formatTime(lastResult.survivedSec)}</strong>
-          </p>
-          <p style={styles.resultLine}>
-            獲得コイン: <strong style={{ color: "#fde047" }}>{lastResult.coins}</strong>
-            {lastResult.clearBonus > 0 && (
-              <span style={{ color: "#fde047", fontSize: 14, marginLeft: 8 }}>
-                (クリアボーナス +{lastResult.clearBonus})
-              </span>
-            )}
-            {lastResult.retryBonus > 0 && (
-              <span style={{ color: "#94a3b8", fontSize: 14, marginLeft: 8 }}>
-                (リトライボーナス +{lastResult.retryBonus})
-              </span>
-            )}
-          </p>
-          <p style={styles.resultLine}>所持コイン: <strong>{coins}</strong></p>
-          <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
-            <button style={styles.primaryBtn} onClick={handleBackToTree}>スキルツリーへ</button>
-            <button style={styles.secondaryBtn} onClick={() => setScreen(SCREEN.STAGE_SELECT)}>ステージ選択</button>
-            <button style={styles.secondaryBtn} onClick={() => handleStartStage(selectedStage)}>もう一度</button>
+        <div style={styles.resultScreen}>
+          <div style={styles.resultBox}>
+            <div style={{
+              ...styles.resultBanner,
+              color: lastResult.cleared ? PAL.gold : PAL.blood,
+              textShadow: lastResult.cleared
+                ? "0 0 18px rgba(240,196,74,0.7), 3px 3px 0 #4a2a0a"
+                : "0 0 18px rgba(198,56,56,0.7), 3px 3px 0 #4a0a0a",
+            }}>
+              {lastResult.cleared ? `STAGE ${String(lastResult.stageNumber).padStart(2, "0")}` : "RUN"}
+            </div>
+            <div style={{
+              ...styles.resultStatus,
+              color: lastResult.cleared ? PAL.gold : PAL.blood,
+            }}>
+              {lastResult.cleared ? "◆ CLEAR ◆" : "◆ ENDED ◆"}
+            </div>
+
+            <div style={styles.resultStats}>
+              <div style={styles.statRow}>
+                <span style={styles.statLabel}>生存時間 / TIME</span>
+                <span style={styles.statValue}>{formatTime(lastResult.survivedSec)}</span>
+              </div>
+              <div style={styles.statRow}>
+                <span style={styles.statLabel}>獲得コイン / EARNED</span>
+                <span style={{ ...styles.statValue, color: PAL.gold, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                  <Coin scale={2} />
+                  {lastResult.coins}
+                </span>
+              </div>
+              {lastResult.clearBonus > 0 && (
+                <div style={styles.bonusRow}>
+                  <span style={styles.bonusLabel}>CLEAR BONUS</span>
+                  <span style={{ ...styles.bonusValue, color: PAL.gold }}>+{lastResult.clearBonus}</span>
+                </div>
+              )}
+              {lastResult.retryBonus > 0 && (
+                <div style={styles.bonusRow}>
+                  <span style={styles.bonusLabel}>RETRY BONUS</span>
+                  <span style={styles.bonusValue}>+{lastResult.retryBonus}</span>
+                </div>
+              )}
+              <div style={styles.statRow}>
+                <span style={styles.statLabel}>所持コイン / TOTAL</span>
+                <span style={{ ...styles.statValue, color: PAL.gold }}>{coins.toLocaleString()}</span>
+              </div>
+            </div>
+
+            <div style={styles.resultButtons}>
+              <button style={styles.primaryBtn} onClick={handleBackToTree}>SKILL TREE</button>
+              <button style={styles.secondaryBtn} onClick={() => setScreen(SCREEN.STAGE_SELECT)}>STAGE</button>
+              <button style={styles.secondaryBtn} onClick={() => handleStartStage(selectedStage)}>RETRY</button>
+            </div>
           </div>
         </div>
       )}
@@ -265,23 +294,74 @@ function formatTime(sec) {
 
 const styles = {
   app: {
-    padding: "calc(env(safe-area-inset-top) + 12px) calc(env(safe-area-inset-right) + 16px) calc(env(safe-area-inset-bottom) + 12px) calc(env(safe-area-inset-left) + 16px)",
+    minHeight: "100vh",
+    background: PAL.ink,
+    color: PAL.bone,
+    fontFamily: JP_FONT,
+    paddingTop: "env(safe-area-inset-top)",
+    paddingBottom: "env(safe-area-inset-bottom)",
   },
-  header: { display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 12, padding: "0 8px" },
-  title: { margin: 0, fontSize: 22 },
-  userId: { fontSize: 12, color: "#64748b" },
-  center: { textAlign: "center", color: "#cbd5e1" },
-  resultWrap: {
-    maxWidth: 480, margin: "40px auto", textAlign: "center",
-    background: "#1e293b", padding: 24, borderRadius: 8, border: "1px solid #334155",
+  center: { textAlign: "center", color: PAL.bone2, padding: 40, fontFamily: JP_FONT },
+  resultScreen: {
+    minHeight: "100vh",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    padding: 16,
   },
-  resultLine: { fontSize: 18, margin: "8px 0" },
+  resultBox: {
+    background: PAL.ink2,
+    boxShadow: `4px 4px 0 #050309, 0 0 0 2px ${PAL.gold}`,
+    padding: "24px 22px",
+    maxWidth: 420, width: "100%",
+    textAlign: "center",
+  },
+  resultBanner: {
+    fontFamily: PX_FONT, fontSize: 30, letterSpacing: 4,
+    margin: 0, lineHeight: 1.1,
+  },
+  resultStatus: {
+    fontFamily: PX_FONT, fontSize: 14, letterSpacing: 4,
+    margin: "8px 0 24px",
+  },
+  resultStats: {
+    background: PAL.ink, padding: "14px 14px 12px",
+    boxShadow: `inset 0 0 0 1px ${PAL.shadow}`,
+    marginBottom: 20,
+  },
+  statRow: {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "6px 0",
+  },
+  statLabel: {
+    fontFamily: PX_FONT, fontSize: 8, color: PAL.bone2, letterSpacing: 2,
+  },
+  statValue: {
+    fontFamily: PX_FONT, fontSize: 12, color: PAL.bone,
+  },
+  bonusRow: {
+    display: "flex", justifyContent: "space-between", alignItems: "center",
+    padding: "3px 0",
+    borderLeft: `2px solid ${PAL.gold}`,
+    paddingLeft: 8, marginLeft: 6,
+  },
+  bonusLabel: {
+    fontFamily: PX_FONT, fontSize: 7, color: PAL.bone2, letterSpacing: 1.5,
+  },
+  bonusValue: {
+    fontFamily: PX_FONT, fontSize: 9, color: PAL.bone,
+  },
+  resultButtons: {
+    display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap",
+  },
   primaryBtn: {
-    background: "#22c55e", color: "#0f172a", border: "none",
-    padding: "10px 20px", borderRadius: 6, fontSize: 15, fontWeight: 700, cursor: "pointer",
+    fontFamily: PX_FONT, fontSize: 11, letterSpacing: 2,
+    background: PAL.blood, color: PAL.ink, border: "none",
+    padding: "10px 16px", cursor: "pointer",
+    boxShadow: `3px 3px 0 ${PAL.bloodDark}, 0 0 0 2px ${PAL.ink}`,
   },
   secondaryBtn: {
-    background: "#334155", color: "#e2e8f0", border: "none",
-    padding: "10px 20px", borderRadius: 6, fontSize: 15, cursor: "pointer",
+    fontFamily: PX_FONT, fontSize: 11, letterSpacing: 2,
+    background: PAL.shadow, color: PAL.bone, border: "none",
+    padding: "10px 16px", cursor: "pointer",
+    boxShadow: `3px 3px 0 ${PAL.ink}, 0 0 0 2px ${PAL.ink}`,
   },
 };
