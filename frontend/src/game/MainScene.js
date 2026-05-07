@@ -544,9 +544,10 @@ export default class MainScene extends Phaser.Scene {
     }
     const x = this.worldWidth / 2;
     const y = Math.min(120, this.worldHeight * 0.2);
-    const boss = this.add.rectangle(x, y, def.size, def.size, def.color);
+    const boss = makeEnemyShape(this, x, y, def.size, def.color, def.shape || "rect");
     boss.setStrokeStyle(3, 0xfacc15);
     this.enemies.add(boss);
+    setCircleBody(boss, def.size);
     boss.isBoss = true;
     boss.typeId = "boss";
     const bossHp = Math.round(def.hp * (this.stageMul.bossHp ?? 1));
@@ -561,6 +562,16 @@ export default class MainScene extends Phaser.Scene {
     boss.preferredDistance = def.preferredDistance;
     boss.nextShotAt = this.time.now + 1000;
     boss.nextBurstAt = this.time.now + 3000;
+    // 形に応じた rotation 制御
+    if (def.shape === "star") {
+      boss.spinRate = 0.012; // ラスボス: 速めの自転で威圧感
+    } else if (def.shape === "octagon" || def.shape === "pentagon" || def.shape === "hexagon") {
+      boss.spinRate = (Math.random() < 0.5 ? -1 : 1) * 0.006;
+    } else if (def.shape === "rect" || def.shape === "diamond") {
+      boss.spinRate = (Math.random() < 0.5 ? -1 : 1) * 0.008;
+    } else if (def.shape === "triangle") {
+      boss.aimByVelocity = true; // 矢じり: 進行方向を向く
+    }
     this.boss = boss;
     // プレイヤーがボススポーン位置に重なってたら一瞬無敵 (即死防止)
     this.invincibleUntil = Math.max(this.invincibleUntil, this.time.now + 800);

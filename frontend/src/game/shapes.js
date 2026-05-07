@@ -74,6 +74,28 @@ function makePentagon(scene, x, y, size, color) {
   return polygonAt(scene, x, y, size, centered(pts, size), color);
 }
 
+function makeOctagon(scene, x, y, size, color) {
+  const r = size / 2;
+  const pts = [];
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI * 2 * i) / 8 - Math.PI / 8; // 上を平らに
+    pts.push(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  return polygonAt(scene, x, y, size, centered(pts, size), color);
+}
+
+function makeStar(scene, x, y, size, color) {
+  const outer = size / 2;
+  const inner = outer * 0.45;
+  const pts = [];
+  for (let i = 0; i < 10; i++) {
+    const a = (Math.PI * 2 * i) / 10 - Math.PI / 2;
+    const r = i % 2 === 0 ? outer : inner;
+    pts.push(Math.cos(a) * r, Math.sin(a) * r);
+  }
+  return polygonAt(scene, x, y, size, centered(pts, size), color);
+}
+
 function makeDiamond(scene, x, y, size, color) {
   const h = size / 2;
   const pts = centered([0, -h, h, 0, 0, h, -h, 0], size);
@@ -92,6 +114,8 @@ const SHAPE_FACTORIES = {
   triangle_wide: makeTriangleWide,
   hexagon: makeHexagon,
   pentagon: makePentagon,
+  octagon: makeOctagon,
+  star: makeStar,
   diamond: makeDiamond,
   circle: makeCircle,
 };
