@@ -1238,6 +1238,8 @@ export function makeGameConfig(parent) {
       autoCenter: Phaser.Scale.CENTER_BOTH,
       width: "100%",
       height: "100%",
+      // iOS Retina 等に合わせて高解像度描画 (CSS 1px = 物理 N px)
+      zoom: 1,
     },
     physics: {
       default: "arcade",
@@ -1252,10 +1254,13 @@ export function makeGameConfig(parent) {
       forceSetTimeOut: false,
     },
     render: {
-      antialias: false,
+      antialias: true,
+      antialiasGL: true,
       pixelArt: false,
+      roundPixels: true, // テキストのサブピクセルブレ防止
       powerPreference: "high-performance",
     },
+    resolution: window.devicePixelRatio || 1,
     scene: [MainScene],
   };
 }

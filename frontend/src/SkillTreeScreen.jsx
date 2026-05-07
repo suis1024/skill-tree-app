@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import {
-  SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, nextCost, isUnlockable,
+  SKILLS, SKILL_BY_ID, CATEGORIES, TREE_VIEWBOX, SECTION_HEADERS, nextCost, isUnlockable,
 } from "./game/skills";
 
 export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart, onBackToTitle, onOpenSettings, busy }) {
@@ -15,7 +15,7 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
     });
   }, []);
 
-  const nodeRadius = 22;
+  const nodeRadius = 26;
 
   return (
     <div style={styles.wrap}>
@@ -62,6 +62,30 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
           style={styles.svg}
           preserveAspectRatio="xMidYMid meet"
         >
+          {/* カテゴリ見出し */}
+          {SECTION_HEADERS.map((h) => {
+            const color = CATEGORIES[h.category]?.color || "#94a3b8";
+            return (
+              <g key={`hdr-${h.category}`}>
+                <line
+                  x1={20} y1={h.y + 18}
+                  x2={TREE_VIEWBOX.width - 20} y2={h.y + 18}
+                  stroke={color}
+                  strokeOpacity={0.3}
+                  strokeWidth={1}
+                />
+                <text
+                  x={TREE_VIEWBOX.width / 2}
+                  y={h.y + 14}
+                  textAnchor="middle"
+                  fontSize={20}
+                  fontWeight="bold"
+                  fill={color}
+                >{h.label}</text>
+              </g>
+            );
+          })}
+
           {/* 接続線 */}
           {edges.map((e, i) => {
             const childLv = skillLevels[e.childId] || 0;

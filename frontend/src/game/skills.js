@@ -11,7 +11,8 @@ export const CATEGORIES = {
 // レイアウト: 中央に「攻撃」、左に「武器」、右上に「防御」、右下に「経済」を配置。
 // 縦は y、横は x。原点は左上。
 
-export const TREE_VIEWBOX = { width: 1000, height: 600 };
+// height は layoutSkills 後に総ノード数から計算される。初期値はダミー。
+export const TREE_VIEWBOX = { width: 480, height: 1800 };
 
 // requires: 親スキルが指定 level 以上のときだけ取得可能。
 // アンロック系 (maxLevel: 1) は「装備武器の解放」を表す。
@@ -107,25 +108,20 @@ export const SKILLS = [
 ];
 
 // === 自動グリッドレイアウト ===
-// SKILLS で手書きしている pos は historical な値。表示時は以下のロジックで
-// カテゴリ別に整列したグリッド座標で上書きする。
+// スマホ縦画面に合わせて「縦に長いツリー」を作る。
 //
 // レイアウト:
-//   横方向: カテゴリ (左から weapon / attack / defense / economy)
-//   縦方向: 依存深さ (tier) = ルートから何段下か
-//   同カテゴリ・同 tier 内では子要素を横並びにする (中央寄せ)
+//   縦方向: カテゴリ (上から attack / weapon / defense / economy)
+//           各カテゴリには見出し用の上端マージンと、tier 別の行を持つ
+//   横方向: 同 (カテゴリ, tier) 内のノードを最大 4 個まで横並び
+//           5 個以上は折り返し (次の行に)
 //
-// グリッドは GRID_X * GRID_Y のセル単位で計算し、TREE_VIEWBOX に収まるよう
-// セルサイズを決める。
-// カテゴリごとの幅 (合計が TREE_VIEWBOX.width に揃う)
-const CATEGORY_LAYOUT = [
-  { id: "weapon",  weight: 2.4 },
-  { id: "attack",  weight: 1.0 },
-  { id: "defense", weight: 1.2 },
-  { id: "economy", weight: 1.2 },
-];
-const ROW_H = 100;
-const TIER_TOP = 80;
+// SKILLS の手書き pos は表示時に layoutSkills で上書きされる。
+const CATEGORY_ORDER = ["attack", "weapon", "defense", "economy"];
+const ROW_H = 90;
+const SECTION_TOP_PAD = 60; // カテゴリ見出し用
+const SECTION_BOTTOM_PAD = 30;
+const MAX_PER_ROW = 4; // 1 行に並べる最大ノード数
 
 function computeTier(skill, byId, memo) {
   if (memo.has(skill.id)) return memo.get(skill.id);
@@ -138,6 +134,9 @@ function computeTier(skill, byId, memo) {
   memo.set(skill.id, t);
   return t;
 }
+
+// レイアウト結果として、各カテゴリの見出し Y 位置を返す。
+export const SECTION_HEADERS = []; // { category, label, y }
 
 function layoutSkills(skills) {
   const byId = Object.fromEntries(skills.map((s) => [s.id, s]));
@@ -153,28 +152,41 @@ function layoutSkills(skills) {
     groups[s.category][t].push(s);
   }
 
-  // カテゴリ幅を weight で按分
-  const totalWeight = CATEGORY_LAYOUT.reduce((s, c) => s + c.weight, 0);
-  let cursorX = 0;
-  for (const cat of CATEGORY_LAYOUT) {
-    const colW = (TREE_VIEWBOX.width * cat.weight) / totalWeight;
-    const colLeft = cursorX;
-    cursorX += colW;
-    const tiers = groups[cat.id] || {};
-    for (const tierKey of Object.keys(tiers)) {
-      const tier = Number(tierKey);
+  SECTION_HEADERS.length = 0;
+  let cursorY = 30;
+  for (const cat of CATEGORY_ORDER) {
+    const tiers = groups[cat] || {};
+    const tierKeys = Object.keys(tiers).map(Number).sort((a, b) => a - b);
+    if (tierKeys.length === 0) continue;
+    SECTION_HEADERS.push({
+      category: cat,
+      label: CATEGORIES[cat]?.label || cat,
+      y: cursorY,
+    });
+    cursorY += SECTION_TOP_PAD;
+    for (const tier of tierKeys) {
       const arr = tiers[tier];
-      const y = TIER_TOP + tier * ROW_H;
-      const n = arr.length;
-      const cellW = colW / Math.max(1, n);
-      arr.forEach((s, i) => {
-        s.pos = {
-          x: colLeft + cellW * (i + 0.5),
-          y,
-        };
-      });
+      // MAX_PER_ROW で折返し
+      const rows = [];
+      for (let i = 0; i < arr.length; i += MAX_PER_ROW) {
+        rows.push(arr.slice(i, i + MAX_PER_ROW));
+      }
+      for (const row of rows) {
+        const n = row.length;
+        const cellW = TREE_VIEWBOX.width / Math.max(MAX_PER_ROW, n);
+        const xOffset = (TREE_VIEWBOX.width - cellW * n) / 2;
+        row.forEach((s, i) => {
+          s.pos = {
+            x: xOffset + cellW * (i + 0.5),
+            y: cursorY,
+          };
+        });
+        cursorY += ROW_H;
+      }
     }
+    cursorY += SECTION_BOTTOM_PAD;
   }
+  TREE_VIEWBOX.height = cursorY + 30;
 }
 
 layoutSkills(SKILLS);
