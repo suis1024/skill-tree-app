@@ -39,7 +39,7 @@ function firePistol(scene) {
   const speed = 500;
   for (let i = 0; i < count; i++) {
     const angle = count === 1 ? baseAngle : start + (spread * i) / (count - 1);
-    const isCrit = Math.random() < stats.critChance;
+    const isCrit = Math.random() < (stats.pistolCritChance || 0);
     const damage = baseDamage * (isCrit ? 2 : 1);
     const color = isCrit ? 0xfb923c : 0xfacc15;
     const size = isCrit ? 10 : 8;
@@ -234,11 +234,11 @@ function ensureOrbital(scene) {
 }
 
 export const WEAPONS = {
-  pistol:  { id: "pistol",  name: "ピストル",   fireIntervalMs: 350, fire: firePistol },
-  bomb:    { id: "bomb",    name: "爆弾",       fireIntervalMs: 1400, fire: fireBomb },
-  thunder: { id: "thunder", name: "サンダー",   fireIntervalMs: 1100, fire: fireThunder },
-  homing:  { id: "homing",  name: "ホーミング", fireIntervalMs: 700, fire: fireHoming },
-  orbital: { id: "orbital", name: "オービタル", fireIntervalMs: 250, fire: ensureOrbital }, // fire は ensure 用 (短間隔で呼んでも no-op)
+  pistol:  { id: "pistol",  name: "ピストル",   fireIntervalMs: 350,  fire: firePistol },
+  bomb:    { id: "bomb",    name: "爆弾",       fireIntervalMs: 2200, fire: fireBomb },
+  thunder: { id: "thunder", name: "サンダー",   fireIntervalMs: 1500, fire: fireThunder },
+  homing:  { id: "homing",  name: "ホーミング", fireIntervalMs: 900,  fire: fireHoming },
+  orbital: { id: "orbital", name: "オービタル", fireIntervalMs: 250,  fire: ensureOrbital }, // fire は ensure 用 (短間隔で呼んでも no-op)
 };
 
 // 周回弾の位置更新 (毎フレーム呼ぶ)。プレイヤー座標から radius=50 で回る。

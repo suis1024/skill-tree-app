@@ -20,10 +20,6 @@ export const SKILLS = [
   // ===== 攻撃系 (中央縦軸) =====
   { id: "atk_power",  category: "attack", name: "攻撃力アップ",   maxLevel: 5, desc: "全武器のダメージ +20% / Lv",
     pos: { x: 500, y: 460 } },
-  { id: "atk_speed",  category: "attack", name: "攻撃速度アップ", maxLevel: 5, desc: "発射間隔 -20% / Lv (近づくほど効果薄)",
-    requires: { id: "atk_power", level: 1 }, pos: { x: 500, y: 340 } },
-  { id: "atk_crit",   category: "attack", name: "クリティカル率", maxLevel: 5, desc: "クリ率 +10% / Lv。クリ時 ×2 ダメ",
-    requires: { id: "atk_speed", level: 2 }, pos: { x: 500, y: 220 } },
   { id: "atk_pierce", category: "attack", name: "弾の貫通",       maxLevel: 5, desc: "ピストル弾の貫通敵数 +1 / Lv",
     requires: { id: "atk_power", level: 1 }, pos: { x: 380, y: 380 } },
   { id: "atk_multi",  category: "attack", name: "ピストル弾数",   maxLevel: 5, desc: "ピストル 1 発の弾数 +1 / Lv (扇状に拡散)",
@@ -44,12 +40,20 @@ export const SKILLS = [
     pos: { x: 220, y: 720 } },
 
   // 武器固有強化 (各武器の子ノード)
+  // ピストル (atk_power 配下): 攻撃速度・クリティカルはここに
+  { id: "pistol_speed", category: "attack", name: "ピストル速度",   maxLevel: 5, desc: "ピストル発射間隔 -20% / Lv",
+    requires: { id: "atk_power", level: 1 }, pos: { x: 500, y: 340 } },
+  { id: "pistol_crit",  category: "attack", name: "ピストル クリ率", maxLevel: 5, desc: "ピストルのクリ率 +10% / Lv (クリで ×2)",
+    requires: { id: "pistol_speed", level: 2 }, pos: { x: 500, y: 220 } },
+
   { id: "bomb_radius", category: "weapon", name: "爆弾の範囲",     maxLevel: 5, desc: "爆発半径 +20% / Lv",
     requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 460 } },
   { id: "bomb_damage", category: "weapon", name: "爆弾の威力",     maxLevel: 5, desc: "爆弾ダメージ +25% / Lv",
     requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 130, y: 520 } },
   { id: "bomb_range", category: "weapon", name: "爆弾の射程",      maxLevel: 5, desc: "投射射程 +20% / Lv",
     requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 60, y: 420 } },
+  { id: "bomb_speed", category: "weapon", name: "爆弾の速度",      maxLevel: 5, desc: "投擲間隔 -15% / Lv",
+    requires: { id: "wpn_unlock_bomb", level: 1 }, pos: { x: 60, y: 500 } },
 
   { id: "thunder_chain",  category: "weapon", name: "サンダー連鎖", maxLevel: 5, desc: "連鎖数 +1 / Lv",
     requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 600 } },
@@ -57,6 +61,8 @@ export const SKILLS = [
     requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 80, y: 660 } },
   { id: "thunder_range",  category: "weapon", name: "サンダー射程", maxLevel: 5, desc: "射程 +20% / Lv",
     requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 150, y: 600 } },
+  { id: "thunder_speed",  category: "weapon", name: "サンダー速度", maxLevel: 5, desc: "発動間隔 -15% / Lv",
+    requires: { id: "wpn_unlock_thunder", level: 1 }, pos: { x: 150, y: 660 } },
 
   { id: "homing_count",  category: "weapon", name: "ホーミング数",  maxLevel: 5, desc: "1 回の発射で +1 / Lv",
     requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 720 } },
@@ -64,6 +70,8 @@ export const SKILLS = [
     requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 460, y: 780 } },
   { id: "homing_range",  category: "weapon", name: "ホーミング射程", maxLevel: 5, desc: "追尾射程 +20% / Lv",
     requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 530, y: 720 } },
+  { id: "homing_speed",  category: "weapon", name: "ホーミング速度", maxLevel: 5, desc: "発射間隔 -15% / Lv",
+    requires: { id: "wpn_unlock_homing", level: 1 }, pos: { x: 530, y: 780 } },
 
   { id: "orbital_count", category: "weapon", name: "オービタル数",  maxLevel: 4, desc: "周回弾の個数 +1 / Lv (初期 2)",
     requires: { id: "wpn_unlock_orbital", level: 1 }, pos: { x: 80, y: 780 } },
@@ -134,10 +142,17 @@ export function computeStats(skillLevels) {
   const lv = (id) => skillLevels[id] || 0;
   return {
     damageMul:        1 + lv("atk_power")  * 0.20,
-    fireRateMul:      1 + lv("atk_speed")  * 0.20,
-    critChance:       lv("atk_crit")  * 0.10,
+    pistolCritChance: lv("pistol_crit") * 0.10,
     pierce:           lv("atk_pierce"),
     bulletCount:      1 + lv("atk_multi"),
+    // 武器ごとの発射間隔倍率 (1 を分母にして使う想定: delay = base / mul)
+    weaponSpeedMul: {
+      pistol:  1 + lv("pistol_speed")  * 0.20,
+      bomb:    1 + lv("bomb_speed")    * 0.15,
+      thunder: 1 + lv("thunder_speed") * 0.15,
+      homing:  1 + lv("homing_speed")  * 0.15,
+      orbital: 1, // 周回武器は速度スキル無し
+    },
     maxHp:            50 + lv("def_hp")   * 20,
     regenPerSec:      lv("def_regen") * 2,
     speedMul:         1 + lv("def_speed") * 0.20,

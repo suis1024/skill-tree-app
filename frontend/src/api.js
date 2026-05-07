@@ -1,7 +1,7 @@
 // 進捗は全部ブラウザの localStorage に保存。サーバー不要。
 // 関数シグネチャはサーバー版と同じに保つ (App.jsx 側を変えなくて済むように)。
 
-import { SKILLS, SKILL_BY_ID, isUnlockable, totalSpent } from "./game/skills";
+import { SKILLS, SKILL_BY_ID, isUnlockable, totalSpent, COST_TABLE } from "./game/skills";
 import { TOTAL_STAGES } from "./game/stages";
 
 const USER_ID_KEY = "skill-tree-shooter:user-id";
@@ -63,8 +63,35 @@ function writeClearedStages(arr) {
   localStorage.setItem(STAGES_KEY, JSON.stringify(arr));
 }
 
+// 廃止された旧スキル ID。所持していたら自動でコイン全額返金 + 削除する。
+const RETIRED_SKILL_IDS = ["atk_speed", "atk_crit"];
+
+// 旧スキル ID の lv コストテーブル (旧定義時の COST_TABLE = 現行と同じ)。
+function migrateRetiredSkills() {
+  const skills = readSkills();
+  let refund = 0;
+  let changed = false;
+  for (const id of RETIRED_SKILL_IDS) {
+    const lv = skills[id] || 0;
+    if (lv > 0) {
+      // COST_TABLE 全 5 段の累積を返金
+      for (let i = 0; i < lv && i < COST_TABLE.length; i++) refund += COST_TABLE[i];
+      delete skills[id];
+      changed = true;
+    } else if (id in skills) {
+      delete skills[id];
+      changed = true;
+    }
+  }
+  if (changed) {
+    writeSkills(skills);
+    if (refund > 0) writeCoins(readCoins() + refund);
+  }
+}
+
 // API は Promise を返す形を維持 (将来クラウド同期に戻す余地)。
 export async function fetchProgress(userId) {
+  migrateRetiredSkills();
   return {
     user_id: userId,
     coins: readCoins(),

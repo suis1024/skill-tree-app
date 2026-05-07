@@ -97,7 +97,8 @@ export default class MainScene extends Phaser.Scene {
     for (const wid of this.stats.weapons) {
       const w = WEAPONS[wid];
       if (!w) continue;
-      const delay = Math.max(60, w.fireIntervalMs / this.stats.fireRateMul);
+      const speedMul = (this.stats.weaponSpeedMul && this.stats.weaponSpeedMul[wid]) || 1;
+      const delay = Math.max(60, w.fireIntervalMs / speedMul);
       const timer = this.time.addEvent({
         delay,
         loop: true,
