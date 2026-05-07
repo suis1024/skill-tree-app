@@ -117,7 +117,7 @@ function fireThunder(scene) {
   if (distToFirst > (stats.thunderRange ?? Infinity)) return;
   playSe(scene, AUDIO_KEYS.seThunder.key, { volume: 0.4, minIntervalMs: 150 });
   const damage = 20 * (stats.thunderDamageMul ?? 1);
-  const chainCount = 3 + (stats.thunderChainAdd ?? 0);
+  const chainCount = stats.thunderChainAdd ?? 0;
   const chainRadius = 160;
 
   const hit = new Set();

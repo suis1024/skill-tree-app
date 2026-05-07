@@ -1,4 +1,4 @@
-export const COST_TABLE = [10, 25, 50, 100, 200];
+export const COST_TABLE = [25, 50, 100, 200, 400];
 
 export const CATEGORIES = {
   weapon:  { label: "武器", color: "#ef4444" },
@@ -16,13 +16,13 @@ export const SKILLS = [
   // ===== 武器系 =====
   // 武器解放: すべてピストル直下 (= 最初からどれでも買える)
   { id: "wpn_unlock_bomb",    category: "weapon", name: "爆弾",       maxLevel: 1, desc: "近くの敵に放物線で爆弾を投げる",
-    costOverrides: [40],  requires: { id: "pistol_unlock", level: 1 } },
-  { id: "wpn_unlock_thunder", category: "weapon", name: "サンダー",   maxLevel: 1, desc: "近くの敵に落雷、3 体まで連鎖",
     costOverrides: [80],  requires: { id: "pistol_unlock", level: 1 } },
+  { id: "wpn_unlock_thunder", category: "weapon", name: "サンダー",   maxLevel: 1, desc: "近くの敵に落雷 (連鎖はスキルで増加)",
+    costOverrides: [150], requires: { id: "pistol_unlock", level: 1 } },
   { id: "wpn_unlock_homing",  category: "weapon", name: "ホーミング", maxLevel: 1, desc: "敵を追尾する弾を発射",
-    costOverrides: [60],  requires: { id: "pistol_unlock", level: 1 } },
-  { id: "wpn_unlock_orbital", category: "weapon", name: "オービタル", maxLevel: 1, desc: "周囲を回る弾で接触ダメージ",
     costOverrides: [100], requires: { id: "pistol_unlock", level: 1 } },
+  { id: "wpn_unlock_orbital", category: "weapon", name: "オービタル", maxLevel: 1, desc: "周囲を回る弾で接触ダメージ",
+    costOverrides: [200], requires: { id: "pistol_unlock", level: 1 } },
 
   // ピストル列 (初期武器: ヘッダーに「ピストル」を表示するためのダミー解放スキル)
   { id: "pistol_unlock", category: "weapon", name: "ピストル", maxLevel: 1, desc: "初期装備。常に発射する基本武器",
@@ -86,7 +86,7 @@ export const SKILLS = [
   { id: "def_armor",  category: "defense", name: "被ダメージ軽減",   maxLevel: 5, desc: "被ダメ -10% / Lv (最大 -50%)",
     requires: { id: "def_hp", level: 2 }, pos: { x: 800, y: 420 } },
   { id: "def_revive", category: "defense", name: "復活",             maxLevel: 1, desc: "HP0 で 1 回だけ自動復活",
-    costOverrides: [150], requires: { id: "def_armor", level: 2 },
+    costOverrides: [300], requires: { id: "def_armor", level: 2 },
     pos: { x: 880, y: 320 } },
 
   // ===== 経済系 (右下) =====
