@@ -1292,15 +1292,9 @@ export default class MainScene extends Phaser.Scene {
     // ピストル系の貫通弾。同じ敵に再ヒットして pierceLeft を浪費しないよう
     // hit 履歴を bullet 側に持つ。既にこの敵に当たっていたら何もしない。
     if (!bullet._hitSet) bullet._hitSet = new Set();
-    if (bullet._hitSet.has(enemy)) {
-      // eslint-disable-next-line no-console
-      console.log("[PIERCE skip dup]", { pierceLeft: bullet.pierceLeft, hits: bullet._hitSet.size });
-      return;
-    }
+    if (bullet._hitSet.has(enemy)) return;
     bullet._hitSet.add(enemy);
     this.damageEnemy(enemy, bullet.damage, !!bullet.isCrit);
-    // eslint-disable-next-line no-console
-    console.log("[PIERCE hit]", { pierceLeft: bullet.pierceLeft, hits: bullet._hitSet.size, enemyId: enemy.typeId });
     if (bullet.pierceLeft > 0) {
       bullet.pierceLeft -= 1;
     } else {
