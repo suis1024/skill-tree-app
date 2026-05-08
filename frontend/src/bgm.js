@@ -159,7 +159,43 @@ async function ensureCtxRunning() {
 // 確認して無効ならその時点で抜ける。
 let playToken = 0;
 
+// 復帰時に「BGM 再開を試みた key」を覚えておく。UI が isBgmStuck() で問い合わせて
+// 復帰ボタンを出すため。
+let lastResumeAttemptAt = 0;
+let lastResumeKey = null;
+
+export function isBgmStuck() {
+  // 復帰試行から 2 秒以上経って、まだ source が起き上がっていない場合は stuck 扱い
+  if (!lastResumeKey) return false;
+  if (currentSource) return false;
+  return Date.now() - lastResumeAttemptAt > 2000;
+}
+
+export function forceResumeBgm() {
+  if (!lastResumeKey) return;
+  const k = lastResumeKey;
+  currentKey = null;
+  playTrack(k);
+  lastResumeAttemptAt = Date.now();
+}
+
 let resumeKey = null;
+function tryResume(k, attempt = 0) {
+  currentKey = null;
+  playTrack(k);
+  lastResumeAttemptAt = Date.now();
+  lastResumeKey = k;
+  // iOS WebKit の interrupted state を踏むと resume が確率的に失敗する
+  // (https://bugs.webkit.org/show_bug.cgi?id=263627)。
+  // 100 / 500 / 1500ms で複数回リトライする。
+  const delays = [100, 500, 1500];
+  if (attempt < delays.length) {
+    setTimeout(() => {
+      if (currentKey === k && !currentSource) tryResume(k, attempt + 1);
+    }, delays[attempt]);
+  }
+}
+
 if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "hidden") {
@@ -169,12 +205,7 @@ if (typeof document !== "undefined") {
       if (!resumeKey) return;
       const k = resumeKey;
       resumeKey = null;
-      currentKey = null;
-      playTrack(k);
-      // 1 度で復帰しないことがあるので保険の再試行 (まだ同じ key で source なし)
-      setTimeout(() => {
-        if (currentKey === k && !currentSource) playTrack(k);
-      }, 400);
+      tryResume(k);
     }
   });
 }

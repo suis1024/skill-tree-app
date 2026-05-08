@@ -9,7 +9,7 @@ import { PAL, PX_FONT, JP_FONT, Coin } from "./pixel/PixelArt";
 import { playUiSe } from "./uiSe";
 import { readSettings, writeSettings } from "./settings";
 import { setHapticsEnabled } from "./haptics";
-import { startBgm, setBgmEnabled, setBgmVolume, playTrack } from "./bgm";
+import { startBgm, setBgmEnabled, setBgmVolume, playTrack, isBgmStuck, forceResumeBgm } from "./bgm";
 
 const SCREEN = {
   LOADING: "loading",
@@ -80,6 +80,43 @@ export default function App() {
       playTrack("menu");
     }
   }, [screen]);
+
+  // BGM が iOS WebKit のバグで復帰失敗してたらユーザータップで強制再開する
+  // ためのフローティングボタン (body 直下、画面遷移と独立で表示)。
+  useEffect(() => {
+    const btn = document.createElement("button");
+    btn.textContent = "♪ TAP";
+    btn.setAttribute("aria-label", "BGM 再生");
+    btn.setAttribute("data-no-se", "");
+    Object.assign(btn.style, {
+      position: "fixed",
+      top: "calc(env(safe-area-inset-top) + 60px)",
+      right: "calc(env(safe-area-inset-right) + 12px)",
+      zIndex: "9998",
+      display: "none",
+      background: "rgba(240,196,74,0.95)",
+      color: "#0a0612",
+      fontFamily: '"Press Start 2P", monospace',
+      fontSize: "10px",
+      letterSpacing: "1px",
+      border: "none",
+      padding: "8px 12px",
+      cursor: "pointer",
+      boxShadow: "0 0 12px rgba(240,196,74,0.6), 2px 2px 0 #050309",
+    });
+    btn.addEventListener("click", () => {
+      forceResumeBgm();
+      btn.style.display = "none";
+    });
+    document.body.appendChild(btn);
+    const id = setInterval(() => {
+      btn.style.display = isBgmStuck() ? "block" : "none";
+    }, 1000);
+    return () => {
+      clearInterval(id);
+      btn.remove();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
