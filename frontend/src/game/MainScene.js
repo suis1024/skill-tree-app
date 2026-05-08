@@ -1027,20 +1027,44 @@ export default class MainScene extends Phaser.Scene {
         if (dist <= enemy.chargeDetectRange) {
           enemy.chargeDirX = nx;
           enemy.chargeDirY = ny;
-          enemy.rotation = Math.atan2(ny, nx); // フラッシュ前に瞬間で向き合わせる
+          enemy.rotation = Math.atan2(ny, nx);
           enemy.chargeState = "telegraphing";
           enemy.chargeStateUntil = now + enemy.chargeTelegraphMs;
           enemy.body.setVelocity(0, 0);
+          // 本体をスケール + 白フラッシュで「予兆」を明示
           this.tweens.add({
             targets: enemy,
-            alpha: { from: 1, to: 0.4 },
-            yoyo: true,
-            repeat: 3,
+            scale: { from: 1.0, to: 1.4 },
+            duration: enemy.chargeTelegraphMs,
+            ease: "Cubic.in",
+          });
+          // 一瞬白くフラッシュ (本体の元色を覚えておく)
+          enemy._chargeOrigColor = enemy.fillColor;
+          this.tweens.addCounter({
+            from: 0, to: 1,
             duration: enemy.chargeTelegraphMs / 8,
+            yoyo: true, repeat: 7,
+            onUpdate: (tw) => {
+              if (!enemy.active) return;
+              const t = tw.getValue();
+              enemy.fillColor = t > 0.5 ? 0xffffff : enemy._chargeOrigColor;
+            },
+          });
+          // 突進ライン (危険ガイド) を出す。ステートに保持して charging 開始時に消す。
+          const lineLen = enemy.chargeSpeed * (enemy.chargeDurationMs / 1000);
+          const ex = enemy.x + nx * lineLen;
+          const ey = enemy.y + ny * lineLen;
+          enemy._chargeLine = this.add.line(0, 0, enemy.x, enemy.y, ex, ey, 0xef4444, 0.7)
+            .setOrigin(0, 0).setLineWidth(2).setDepth(800);
+          this.tweens.add({
+            targets: enemy._chargeLine,
+            alpha: { from: 0.2, to: 0.9 },
+            duration: enemy.chargeTelegraphMs / 4,
+            yoyo: true, repeat: 1,
           });
         } else {
           enemy.body.setVelocity(nx * enemy.speed, ny * enemy.speed);
-          targetAngle = Math.atan2(ny, nx); // 追跡中も滑らかにプレイヤー方向
+          targetAngle = Math.atan2(ny, nx);
         }
         break;
       }
@@ -1050,8 +1074,15 @@ export default class MainScene extends Phaser.Scene {
           enemy.chargeState = "charging";
           enemy.chargeStateUntil = now + enemy.chargeDurationMs;
           enemy.alpha = 1;
+          enemy.setScale(1.0);
+          if (enemy._chargeOrigColor !== undefined) {
+            enemy.fillColor = enemy._chargeOrigColor;
+          }
+          if (enemy._chargeLine) {
+            enemy._chargeLine.destroy();
+            enemy._chargeLine = null;
+          }
         }
-        // ロック済み方向を維持 (rotation は変えない)
         break;
       }
       case "charging": {
@@ -1330,6 +1361,7 @@ export default class MainScene extends Phaser.Scene {
     const burstScale = wasBoss ? 2.2 : 1;
     if (enemy.glow) { enemy.glow.destroy(); enemy.glow = null; }
     if (enemy.core) { enemy.core.destroy(); enemy.core = null; }
+    if (enemy._chargeLine) { enemy._chargeLine.destroy(); enemy._chargeLine = null; }
     enemy.destroy();
     spawnDeathBurst(this, x, y, burstColor, burstScale);
     for (let i = 0; i < dropCount; i++) {
