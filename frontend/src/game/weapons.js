@@ -47,6 +47,10 @@ function firePistolFan(scene, baseAngle, count) {
     bullet.damage = damage;
     bullet.isCrit = isCrit;
     bullet.pierceLeft = stats.pierce;
+    if (i === 0) {
+      // eslint-disable-next-line no-console
+      console.log("[PIERCE bullet born]", { pierceLeft: bullet.pierceLeft, statsPierce: stats.pierce });
+    }
     scene.time.delayedCall(BULLET_LIFETIME_MS, () => bullet.destroy());
   }
 }
