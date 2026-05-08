@@ -31,7 +31,7 @@ export const ENEMY_TYPES = {
   tank: {
     color: 0xa855f7,
     size: 36,
-    hp: 150,
+    hp: 100,
     speed: 55,
     contactDamage: 20,
     coinDrop: 2,
@@ -55,7 +55,7 @@ export const ENEMY_TYPES = {
   bouncer: {
     color: 0x14b8a6,
     size: 22,
-    hp: 80,
+    hp: 100,
     speed: 180,
     contactDamage: 10,
     coinDrop: 2,
@@ -66,7 +66,7 @@ export const ENEMY_TYPES = {
   turret: {
     color: 0x9333ea,
     size: 26,
-    hp: 60,
+    hp: 40,
     speed: 0,
     contactDamage: 10,
     coinDrop: 2,

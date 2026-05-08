@@ -140,7 +140,7 @@ export const STAGE_WAVES = {
     wave({ type: "grunt",   startSec: 0,  endSec: 60, intervalMs: 800 }),
     wave({ type: "swift",   startSec: 0,  endSec: 60, intervalMs: 1100 }),
     wave({ type: "tank",    startSec: 5,  endSec: 60, intervalMs: 4500 }),
-    wave({ type: "shooter", startSec: 10, endSec: 60, intervalMs: 4000 }),
+    wave({ type: "shooter", startSec: 10, endSec: 60, intervalMs: 6000 }),
     wave({ type: "bouncer", startSec: 15, endSec: 60, intervalMs: 5000 }),
     wave({ type: "charger", startSec: 25, endSec: 60, intervalMs: 5500 }),
     wave({ type: "turret",  startSec: 30, endSec: 90, intervalMs: 30000, count: 1 }),
@@ -175,7 +175,7 @@ export const STAGE_WAVES = {
     wave({ type: "swift",   startSec: 60, endSec: 90, intervalMs: 600 }),
     wave({ type: "tank",    startSec: 60, endSec: 90, intervalMs: 2200 }),
     wave({ type: "charger", startSec: 65, endSec: 90, intervalMs: 3000 }),
-    wave({ type: "shooter", startSec: 65, endSec: 90, intervalMs: 2500 }),
+    wave({ type: "shooter", startSec: 65, endSec: 90, intervalMs: 6000 }),
     wave({ type: "bouncer", startSec: 70, endSec: 90, intervalMs: 3000 }),
   ],
 };

@@ -1289,6 +1289,11 @@ export default class MainScene extends Phaser.Scene {
       this.damageEnemy(enemy, bullet.damage, !!bullet.isCrit);
       return;
     }
+    // ピストル系の貫通弾。同じ敵に再ヒットして pierceLeft を浪費しないよう
+    // hit 履歴を bullet 側に持つ。既にこの敵に当たっていたら何もしない。
+    if (!bullet._hitSet) bullet._hitSet = new Set();
+    if (bullet._hitSet.has(enemy)) return;
+    bullet._hitSet.add(enemy);
     this.damageEnemy(enemy, bullet.damage, !!bullet.isCrit);
     if (bullet.pierceLeft > 0) {
       bullet.pierceLeft -= 1;

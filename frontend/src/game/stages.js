@@ -16,11 +16,11 @@ export const STAGE_MUL = {
   3:  { hp: 4,    speed: 1.00, damage: 1.15, bossHp: 1.10, coin: 1.44 },
   4:  { hp: 5,    speed: 1.00, damage: 1.30, bossHp: 1.15, coin: 1.67 },
   5:  { hp: 10,   speed: 1.00, damage: 1.50, bossHp: 1.20, coin: 1.89 },
-  6:  { hp: 15,   speed: 1.00, damage: 1.75, bossHp: 1.30, coin: 2.11 },
-  7:  { hp: 30,   speed: 1.00, damage: 2.00, bossHp: 1.40, coin: 2.33 },
-  8:  { hp: 40,   speed: 1.00, damage: 2.25, bossHp: 1.50, coin: 2.56 },
-  9:  { hp: 50,   speed: 1.00, damage: 2.50, bossHp: 1.65, coin: 2.78 },
-  10: { hp: 60,   speed: 1.00, damage: 2.75, bossHp: 1.80, coin: 3.0 },
+  6:  { hp: 12,   speed: 1.00, damage: 1.75, bossHp: 1.30, coin: 2.11 },
+  7:  { hp: 14,   speed: 1.00, damage: 2.00, bossHp: 1.40, coin: 2.33 },
+  8:  { hp: 16,   speed: 1.00, damage: 2.25, bossHp: 1.50, coin: 2.56 },
+  9:  { hp: 13,   speed: 1.00, damage: 2.50, bossHp: 1.65, coin: 2.78 },
+  10: { hp: 13,   speed: 1.00, damage: 2.75, bossHp: 1.80, coin: 3.0 },
 };
 
 export function stageMul(stageNumber) {
