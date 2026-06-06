@@ -73,22 +73,25 @@ export default function SkillTreeScreen({ coins, skillLevels, onUpgrade, onStart
       <div style={styles.treeWrap}>
         <TransformWrapper
           initialScale={1}
-          minScale={0.6}
-          maxScale={3}
-          limitToBounds={false}
+          minScale={1}
+          maxScale={1}
+          limitToBounds={true}
+          centerZoomedOut={false}
+          alignmentAnimation={{ disabled: true }}
           doubleClick={{ disabled: true }}
-          wheel={{ step: 0.1 }}
-          panning={{ velocityDisabled: true }}
-          pinch={{ step: 5 }}
+          wheel={{ disabled: true }}
+          panning={{ velocityDisabled: true, lockAxisX: true }}
+          pinch={{ disabled: true }}
         >
         <TransformComponent
           wrapperStyle={{ width: "100%", height: "100%" }}
-          contentStyle={{ width: "100%", height: "100%" }}
+          contentStyle={{ width: "100%" }}
         >
         <svg
           viewBox={`0 0 ${TREE_VIEWBOX.width} ${TREE_VIEWBOX.height}`}
+          width="100%"
           style={styles.svg}
-          preserveAspectRatio="xMidYMid meet"
+          preserveAspectRatio="xMidYMin meet"
         >
           {/* カテゴリ見出し */}
           {SECTION_HEADERS.map((h) => {
@@ -365,10 +368,11 @@ const styles = {
     width: "100%",
     background: PAL.ink,
     overflow: "hidden",
-    aspectRatio: `${TREE_VIEWBOX.width} / ${TREE_VIEWBOX.height}`,
-    maxHeight: "70vh",
+    // viewport にフィットさせず固定 height で「窓」を作り、SVG は窓より大きく
+    // 描画して縦スクロールで見せる。
+    height: "70vh",
   },
-  svg: { width: "100%", height: "100%", display: "block" },
+  svg: { width: "100%", display: "block" },
   hint: { textAlign: "center", color: "#64748b", fontSize: 13, marginTop: 12 },
   detailWrap: {
     position: "fixed",

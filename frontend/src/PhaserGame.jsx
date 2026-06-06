@@ -6,6 +6,9 @@ import { setBgmEnabled, setBgmVolume } from "./bgm";
 import { PauseIcon, BossIcon, PlayIcon } from "./icons";
 import { PAL, PX_FONT, JP_FONT } from "./pixel/PixelArt";
 
+// 申請ビルドではチート UI を隠す。SettingsScreen.jsx の同名定数とセットで管理。
+const SHOW_DEV_SECTION = false;
+
 export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, onAbort }) {
   const containerRef = useRef(null);
   const gameRef = useRef(null);
@@ -130,13 +133,15 @@ export default function PhaserGame({ skillLevels, stageNumber = 1, onRunEnded, o
               ABORT すると今回稼いだコインは破棄されます。
             </p>
 
-            <div style={settingsBlock}>
-              <h3 style={settingsTitle}>◆ DEV ◆</h3>
-              <button style={cheatBtn} onClick={handleSummonBoss}>
-                <BossIcon width={14} height={14} />
-                <span>SUMMON BOSS</span>
-              </button>
-            </div>
+            {SHOW_DEV_SECTION && (
+              <div style={settingsBlock}>
+                <h3 style={settingsTitle}>◆ DEV ◆</h3>
+                <button style={cheatBtn} onClick={handleSummonBoss}>
+                  <BossIcon width={14} height={14} />
+                  <span>SUMMON BOSS</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

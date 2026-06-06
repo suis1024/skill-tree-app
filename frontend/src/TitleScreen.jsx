@@ -32,8 +32,19 @@ function LogoNeon({ scale = 0.85 }) {
         fontFamily: PX_FONT, fontSize: 44 * scale, color: PAL.blood,
         letterSpacing: 4,
         textShadow: `0 0 18px ${PAL.blood}aa, 0 0 32px ${PAL.blood}66, 4px 4px 0 #4a0a0a`,
+        // T の前にだけ詰める (Press Start 2P で T 字幅が広いため)
+        display: "inline-block",
       }}>
-        SHOOTER
+        {"SHOOTER".split("").map((ch, i, arr) => {
+          // O→T の境界で大きく詰める
+          const prev = arr[i - 1];
+          const tighter = prev === "O" && ch === "T";
+          return (
+            <span key={i} style={{ marginLeft: tighter ? -(8 * scale) : 0 }}>
+              {ch}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

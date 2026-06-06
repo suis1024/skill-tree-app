@@ -6,6 +6,10 @@ import { useState } from "react";
 import { ResetIcon, WarnIcon, CoinIcon, UnlockIcon, BackIcon } from "./icons";
 import { PAL, PX_FONT, JP_FONT } from "./pixel/PixelArt";
 
+// 申請ビルドではチート UI を隠す。機能 (cheat*) は残してあるので、
+// この定数を true に戻せばすぐ復活できる。
+const SHOW_DEV_SECTION = false;
+
 export default function SettingsScreen({
   settings,
   onChangeSettings,
@@ -129,25 +133,27 @@ export default function SettingsScreen({
           </p>
         </Section>
 
-        <Section title="開発者 / DEV" tone="rune">
-          <p style={{ ...styles.note, marginTop: 0 }}>動作確認用。申請前に削除予定。</p>
-          <PixelButton
-            onClick={() => onCheatAddCoins && onCheatAddCoins(1000)}
-            disabled={disabled || !onCheatAddCoins}
-            tone="rune"
-          >
-            <CoinIcon width={14} height={14} />
-            <span>コイン +1000</span>
-          </PixelButton>
-          <PixelButton
-            onClick={() => onCheatUnlockAllStages && onCheatUnlockAllStages()}
-            disabled={disabled || !onCheatUnlockAllStages}
-            tone="rune"
-          >
-            <UnlockIcon width={14} height={14} />
-            <span>全ステージ解放</span>
-          </PixelButton>
-        </Section>
+        {SHOW_DEV_SECTION && (
+          <Section title="開発者 / DEV" tone="rune">
+            <p style={{ ...styles.note, marginTop: 0 }}>動作確認用。申請前に削除予定。</p>
+            <PixelButton
+              onClick={() => onCheatAddCoins && onCheatAddCoins(1000)}
+              disabled={disabled || !onCheatAddCoins}
+              tone="rune"
+            >
+              <CoinIcon width={14} height={14} />
+              <span>コイン +1000</span>
+            </PixelButton>
+            <PixelButton
+              onClick={() => onCheatUnlockAllStages && onCheatUnlockAllStages()}
+              disabled={disabled || !onCheatUnlockAllStages}
+              tone="rune"
+            >
+              <UnlockIcon width={14} height={14} />
+              <span>全ステージ解放</span>
+            </PixelButton>
+          </Section>
+        )}
       </div>
 
       {confirmState && (

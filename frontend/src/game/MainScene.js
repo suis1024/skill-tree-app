@@ -672,6 +672,9 @@ export default class MainScene extends Phaser.Scene {
     boss.core = bossDecor.core;
     this.enemies.add(boss);
     setCircleBody(boss, def.size);
+    // プレイヤーが触れても body が押されないように (= 触れた瞬間に spawnX/spawnY
+    // ベースのパターン位置に "ワープ" して戻る挙動を防ぐ)。
+    if (boss.body) boss.body.setImmovable(true);
     boss.isBoss = true;
     boss.typeId = "boss";
     const bossHp = Math.round(def.hp * (this.stageMul.bossHp ?? 1));
@@ -1450,9 +1453,12 @@ export default class MainScene extends Phaser.Scene {
 
   hitPlayer(enemy, rawDamage) {
     if (this.time.now < this.invincibleUntil) return;
-    if (enemy.glow) { enemy.glow.destroy(); enemy.glow = null; }
-    if (enemy.core) { enemy.core.destroy(); enemy.core = null; }
-    enemy.destroy();
+    // ボスは触れても消さない (HP は弾で削る前提)。雑魚だけ自爆扱い。
+    if (!enemy.isBoss) {
+      if (enemy.glow) { enemy.glow.destroy(); enemy.glow = null; }
+      if (enemy.core) { enemy.core.destroy(); enemy.core = null; }
+      enemy.destroy();
+    }
     this.applyDamage(rawDamage);
   }
 
