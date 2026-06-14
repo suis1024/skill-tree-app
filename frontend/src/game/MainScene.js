@@ -1511,7 +1511,9 @@ export default class MainScene extends Phaser.Scene {
 
 export function makeGameConfig(parent) {
   return {
-    type: Phaser.WEBGL,
+    // Phaser.AUTO: WebGL 失敗時 Canvas2D に自動フォールバック。
+    // iPad シミュレータ互換モードで WebGL コンテキスト生成が失敗するケースの保険。
+    type: Phaser.AUTO,
     parent,
     scale: {
       mode: Phaser.Scale.RESIZE,
