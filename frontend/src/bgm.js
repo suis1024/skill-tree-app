@@ -7,6 +7,7 @@
 // - 起動時に MP3 を fetch → decodeAudioData で AudioBuffer 化 (1 度だけ)
 // - 再生時は AudioBufferSourceNode を毎回生成 (loop=true、破棄時は stop)
 // - GainNode 1 個で音量制御
+// - AudioContext は audioContext.js の共有 ctx を使う (uiSe と統一)
 //
 // バックグラウンド復帰時の対策:
 // - AudioContext.state が "interrupted" のまま固まるバグがあるので、
@@ -14,17 +15,16 @@
 //   作り直す。AudioBuffer 自体はファイルとして再 decode する必要があるので
 //   キャッシュを使い回し、新 ctx で再 decode する (iOS は ctx ごとに buffer
 //   を持つ必要があるため)
-//
-// 制約:
-// - 復帰時に短い decode 待ち (数百 ms 程度)
+
+import { getCtx, ensureRunning, onRebuild } from "./audioContext";
 
 const TRACKS = {
   stage: "audio/bgm/stage.mp3",
   menu: "audio/bgm/menu.mp3",
 };
 
-let ctx = null;
 let gainNode = null;
+let gainCtx = null; // gainNode が属する ctx (作り直し検知用)
 let enabled = true;
 let volume = 0.25;
 let currentKey = null;
@@ -34,41 +34,26 @@ const fetching = new Map(); // key -> Promise<ArrayBuffer>
 let decodedFor = null; // どの ctx に対して buffers をデコードしたか
 const buffers = new Map(); // key -> AudioBuffer (decodedFor 専用)
 
-function createCtx() {
-  try {
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) return null;
-    const c = new AC();
-    return c;
-  } catch {
-    return null;
-  }
-}
-
-function ensureCtx() {
-  if (ctx) return ctx;
-  ctx = createCtx();
-  if (ctx) {
-    gainNode = ctx.createGain();
+function ensureGain() {
+  const c = getCtx();
+  if (!c) return null;
+  if (!gainNode || gainCtx !== c) {
+    gainNode = c.createGain();
     gainNode.gain.value = enabled ? volume : 0;
-    gainNode.connect(ctx.destination);
-    decodedFor = ctx;
-    buffers.clear();
+    gainNode.connect(c.destination);
+    gainCtx = c;
   }
-  return ctx;
+  return gainNode;
 }
 
-// ctx が壊れている (interrupted) 場合に閉じて作り直す。
-async function rebuildCtx() {
-  if (ctx) {
-    try { await ctx.close(); } catch {}
-  }
-  ctx = null;
-  gainNode = null;
-  decodedFor = null;
+// ctx が作り直されたら buffers と gainNode を破棄
+onRebuild(() => {
   buffers.clear();
-  return ensureCtx();
-}
+  decodedFor = null;
+  gainNode = null;
+  gainCtx = null;
+  currentSource = null;
+});
 
 async function fetchArrayBuffer(key) {
   if (arrayBuffers.has(key)) return arrayBuffers.get(key);
@@ -87,9 +72,8 @@ async function fetchArrayBuffer(key) {
 }
 
 async function getBuffer(key) {
-  const c = ensureCtx();
+  const c = getCtx();
   if (!c) return null;
-  // ctx が変わっていたら buffers を破棄
   if (decodedFor !== c) {
     buffers.clear();
     decodedFor = c;
@@ -97,7 +81,6 @@ async function getBuffer(key) {
   if (buffers.has(key)) return buffers.get(key);
   const arr = await fetchArrayBuffer(key);
   if (!arr) return null;
-  // decodeAudioData は ArrayBuffer を中で消費 (detach) するブラウザがあるので copy
   const copy = arr.slice(0);
   const buf = await new Promise((resolve, reject) => {
     try {
@@ -120,38 +103,20 @@ function stopCurrentSource() {
 }
 
 function startSource(buf) {
-  if (!ctx || !gainNode) return null;
-  const src = ctx.createBufferSource();
+  const c = getCtx();
+  const g = ensureGain();
+  if (!c || !g) return null;
+  const src = c.createBufferSource();
   src.buffer = buf;
   src.loop = true;
-  src.connect(gainNode);
+  src.connect(g);
   try { src.start(0); } catch {}
   return src;
 }
 
 function applyVolume() {
-  if (gainNode) gainNode.gain.value = enabled ? volume : 0;
-}
-
-// ctx を再生可能な状態に戻す。interrupted で固まってたら作り直し。
-async function ensureCtxRunning() {
-  ensureCtx();
-  if (!ctx) return false;
-  // iOS の interrupted は resume が効かないので close + 再生成
-  if (ctx.state === "interrupted") {
-    await rebuildCtx();
-  } else if (ctx.state === "suspended" || ctx.state === "closed") {
-    if (ctx.state === "closed") {
-      await rebuildCtx();
-    } else {
-      try { await ctx.resume(); } catch {}
-      // resume しても running にならなかったら作り直し
-      if (ctx.state !== "running") {
-        await rebuildCtx();
-      }
-    }
-  }
-  return ctx && ctx.state === "running";
+  const g = ensureGain();
+  if (g) g.gain.value = enabled ? volume : 0;
 }
 
 // 並行実行された playTrack 同士の競合を防ぐため、最後に発行された要求のみを有効に
@@ -171,7 +136,6 @@ if (typeof document !== "undefined") {
       resumeKey = null;
       currentKey = null;
       playTrack(k);
-      // 1 度で復帰しないことがあるので保険の再試行 (まだ同じ key で source なし)
       setTimeout(() => {
         if (currentKey === k && !currentSource) playTrack(k);
       }, 400);
@@ -185,8 +149,8 @@ export async function playTrack(key) {
   const myToken = ++playToken;
   currentKey = key;
   stopCurrentSource();
-  await ensureCtxRunning();
-  if (myToken !== playToken) return; // 別の playTrack が走った
+  await ensureRunning();
+  if (myToken !== playToken) return;
   let buf;
   try {
     buf = await getBuffer(key);
